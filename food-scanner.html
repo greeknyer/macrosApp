@@ -1,0 +1,873 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <title>Food Scanner</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card: #1e293b;
+        --border: #334155;
+        --blue: #38bdf8;
+        --green: #4ade80;
+        --orange: #fb923c;
+        --purple: #c084fc;
+        --red: #f87171;
+        --yellow: #fde047;
+        --text: #f8fafc;
+        --sub: #94a3b8;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        min-height: 100vh;
+        padding: 16px;
+      }
+      header {
+        text-align: center;
+        padding: 12px 0 20px;
+      }
+      header h1 {
+        font-size: 1.4rem;
+        color: var(--blue);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      header p {
+        color: var(--sub);
+        font-size: 0.85rem;
+        margin-top: 4px;
+      }
+      .screen {
+        display: none;
+      }
+      .screen.active {
+        display: block;
+      }
+      .page-content {
+        padding-bottom: 90px;
+      }
+
+      /* LOGIN */
+      .login-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 24px;
+        margin-top: 20px;
+      }
+      .login-card p {
+        color: var(--sub);
+        font-size: 0.9rem;
+        margin-bottom: 16px;
+      }
+
+      input[type="password"],
+      input[type="text"],
+      input[type="number"],
+      select {
+        width: 100%;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 14px 16px;
+        border-radius: 10px;
+        font-size: 1rem;
+        outline: none;
+        margin-bottom: 12px;
+        -webkit-appearance: none;
+      }
+      select {
+        cursor: pointer;
+      }
+
+      .btn {
+        width: 100%;
+        padding: 16px;
+        font-size: 1rem;
+        font-weight: bold;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        margin-bottom: 10px;
+        transition: all 0.2s;
+      }
+      .btn-primary {
+        background: #0284c7;
+        color: white;
+      }
+      .btn-primary:hover {
+        background: var(--blue);
+        color: #0f172a;
+      }
+      .btn-success {
+        background: #166534;
+        color: var(--green);
+      }
+      .btn-success:hover {
+        background: #14532d;
+      }
+      .btn-secondary {
+        background: var(--card);
+        color: var(--sub);
+        border: 1px solid var(--border);
+      }
+      .btn-secondary:hover {
+        background: #334155;
+      }
+      .error-msg {
+        color: var(--red);
+        font-size: 0.85rem;
+        margin-top: 4px;
+        display: none;
+      }
+
+      /* SCANNER */
+      .scan-area {
+        position: relative;
+        width: 100%;
+        border-radius: 16px;
+        overflow: hidden;
+        background: #000;
+        margin-bottom: 16px;
+        aspect-ratio: 4/3;
+      }
+      #scannerContainer {
+        width: 100%;
+        height: 100%;
+      }
+      #scannerContainer video {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover;
+      }
+      #scannerContainer canvas {
+        display: none;
+      }
+      .scan-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+      .scan-frame {
+        width: 70%;
+        height: 40%;
+        border: 3px solid var(--blue);
+        border-radius: 12px;
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+        position: relative;
+      }
+      .scan-frame::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80%;
+        height: 2px;
+        background: var(--blue);
+        animation: scanline 2s ease-in-out infinite;
+      }
+      @keyframes scanline {
+        0% {
+          top: 10%;
+          opacity: 1;
+        }
+        50% {
+          top: 85%;
+          opacity: 0.6;
+        }
+        100% {
+          top: 10%;
+          opacity: 1;
+        }
+      }
+      .scan-status {
+        text-align: center;
+        font-size: 0.9rem;
+        color: var(--sub);
+        margin-bottom: 16px;
+        min-height: 24px;
+      }
+      .scan-status.success {
+        color: var(--green);
+      }
+      .scan-status.error {
+        color: var(--red);
+      }
+      .scan-status.loading {
+        color: var(--yellow);
+      }
+
+      .divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 16px 0;
+        color: var(--sub);
+        font-size: 0.8rem;
+      }
+      .divider::before,
+      .divider::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+
+      /* FOOD FORM */
+      .food-form {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 20px;
+        margin-top: 8px;
+      }
+      .food-form h2 {
+        font-size: 1rem;
+        color: var(--blue);
+        margin-bottom: 16px;
+      }
+      .field-label {
+        font-size: 0.75rem;
+        color: var(--sub);
+        text-transform: uppercase;
+        margin-bottom: 4px;
+        display: block;
+        font-weight: normal;
+      }
+      .macro-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .macro-field label {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--sub);
+        text-transform: uppercase;
+        margin-bottom: 4px;
+        font-weight: normal;
+      }
+      .macro-field input {
+        margin-bottom: 0;
+        text-align: center;
+        font-size: 1.1rem;
+        font-weight: bold;
+        padding: 12px 8px;
+      }
+      .serving-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .serving-row label {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--sub);
+        text-transform: uppercase;
+        margin-bottom: 4px;
+        font-weight: normal;
+      }
+      .serving-row input {
+        margin-bottom: 0;
+      }
+
+      /* MEAL TAG CHECKBOXES */
+      .tag-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+      .tag-option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+        user-select: none;
+      }
+      .tag-option.checked {
+        border-color: var(--blue);
+        background: #0c2340;
+      }
+      .tag-option input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        margin: 0;
+        padding: 0;
+        accent-color: var(--blue);
+        flex-shrink: 0;
+        cursor: pointer;
+      }
+      .tag-option span {
+        font-size: 0.95rem;
+        color: var(--text);
+      }
+      .tag-option.checked span {
+        color: var(--blue);
+        font-weight: bold;
+      }
+
+      /* HISTORY */
+      .history-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 8px;
+      }
+      .history-item {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 14px;
+      }
+      .history-item .h-name {
+        font-weight: bold;
+        font-size: 0.95rem;
+      }
+      .history-item .h-macros {
+        font-size: 0.8rem;
+        color: var(--sub);
+        margin-top: 4px;
+        font-family: monospace;
+      }
+      .history-item .h-tags {
+        font-size: 0.72rem;
+        color: var(--purple);
+        margin-top: 2px;
+      }
+
+      /* NAV */
+      .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--card);
+        border-top: 1px solid var(--border);
+        display: flex;
+        z-index: 50;
+      }
+      .nav-btn {
+        flex: 1;
+        padding: 14px 8px;
+        background: none;
+        border: none;
+        color: var(--sub);
+        font-size: 0.75rem;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        transition: color 0.2s;
+      }
+      .nav-btn.active {
+        color: var(--blue);
+      }
+      .nav-btn span {
+        font-size: 1.3rem;
+        line-height: 1;
+      }
+
+      /* TOAST */
+      .toast {
+        position: fixed;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        background: #166534;
+        color: var(--green);
+        border: 1px solid var(--green);
+        padding: 12px 24px;
+        border-radius: 10px;
+        font-weight: bold;
+        font-size: 0.95rem;
+        transition: transform 0.3s ease;
+        z-index: 999;
+        white-space: nowrap;
+      }
+      .toast.show {
+        transform: translateX(-50%) translateY(0);
+      }
+      .toast.error-toast {
+        background: #7f1d1d;
+        color: var(--red);
+        border-color: var(--red);
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 2px solid var(--border);
+        border-top-color: var(--blue);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        vertical-align: middle;
+        margin-right: 6px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>🥗 Food Scanner</h1>
+      <p>Scan barcodes to add foods to your meal app</p>
+    </header>
+
+    <!-- LOGIN -->
+    <div class="screen active page-content" id="screenLogin">
+      <div class="login-card">
+        <p>Enter your admin password to access the food scanner.</p>
+        <input
+          type="password"
+          id="loginPw"
+          placeholder="Admin password"
+          onkeydown="if (event.key === 'Enter') doLogin();"
+        />
+        <button class="btn btn-primary" onclick="doLogin()">
+          Unlock Scanner
+        </button>
+        <p class="error-msg" id="loginErr">Incorrect password. Try again.</p>
+      </div>
+    </div>
+
+    <!-- SCANNER -->
+    <div class="screen page-content" id="screenScanner">
+      <div class="scan-area" id="scanArea">
+        <div id="scannerContainer"></div>
+        <div class="scan-overlay"><div class="scan-frame"></div></div>
+      </div>
+
+      <div class="scan-status" id="scanStatus">Point camera at a barcode</div>
+      <button
+        class="btn btn-secondary"
+        onclick="toggleCamera()"
+        id="cameraToggleBtn"
+      >
+        ⏹ Stop Camera
+      </button>
+
+      <div class="divider">or enter barcode manually</div>
+      <input
+        type="text"
+        id="manualBarcode"
+        placeholder="Type barcode number..."
+        inputmode="numeric"
+      />
+      <button class="btn btn-primary" onclick="lookupManual()">
+        🔍 Look Up
+      </button>
+
+      <!-- Food Form -->
+      <div class="food-form" id="foodForm" style="display: none">
+        <h2>✅ Food Found — Verify & Save</h2>
+
+        <label class="field-label">Food Name</label>
+        <input type="text" id="ffName" placeholder="Food name" />
+
+        <div class="serving-row">
+          <div>
+            <label>Serving Size</label>
+            <input type="text" id="ffServing" placeholder="e.g. 170g" />
+          </div>
+          <div>
+            <label>Serving Unit</label>
+            <input type="text" id="ffUnit" placeholder="e.g. g, oz, cup" />
+          </div>
+        </div>
+
+        <div class="macro-grid">
+          <div class="macro-field">
+            <label>Protein (g)</label>
+            <input type="number" id="ffP" step="0.1" min="0" />
+          </div>
+          <div class="macro-field">
+            <label>Carbs (g)</label>
+            <input type="number" id="ffC" step="0.1" min="0" />
+          </div>
+          <div class="macro-field">
+            <label>Fat (g)</label>
+            <input type="number" id="ffF" step="0.1" min="0" />
+          </div>
+        </div>
+
+        <label class="field-label">Category</label>
+        <select id="ffCat">
+          <option value="">Select category...</option>
+          <option value="protein">Protein</option>
+          <option value="carb">Carb</option>
+          <option value="fat">Fat</option>
+          <option value="mixed">Mixed</option>
+        </select>
+
+        <label class="field-label"
+          >Meal Tags — which meals can this appear in?</label
+        >
+        <div class="tag-grid">
+          <label class="tag-option" onclick="toggleTag(this)">
+            <input type="checkbox" value="breakfast" />
+            <span>🌅 Breakfast</span>
+          </label>
+          <label class="tag-option" onclick="toggleTag(this)">
+            <input type="checkbox" value="snack" /> <span>🍎 Snack</span>
+          </label>
+          <label class="tag-option" onclick="toggleTag(this)">
+            <input type="checkbox" value="preworkout" />
+            <span>⚡ Pre-Workout</span>
+          </label>
+          <label class="tag-option" onclick="toggleTag(this)">
+            <input type="checkbox" value="lunch" /> <span>🥗 Lunch</span>
+          </label>
+          <label class="tag-option" onclick="toggleTag(this)">
+            <input type="checkbox" value="dinner" /> <span>🍽️ Dinner</span>
+          </label>
+          <label class="tag-option" onclick="toggleTag(this)">
+            <input type="checkbox" value="evening" /> <span>🌙 Evening</span>
+          </label>
+        </div>
+
+        <button class="btn btn-success" onclick="saveFood()">
+          💾 Save to Database
+        </button>
+        <button class="btn btn-secondary" onclick="resetForm()">
+          ✕ Cancel
+        </button>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="screen page-content" id="screenHistory">
+      <h2 style="color: var(--blue); margin-bottom: 16px; font-size: 1.1rem">
+        Added This Session
+      </h2>
+      <div class="history-list" id="historyList">
+        <p style="color: var(--sub); font-size: 0.9rem">
+          No foods added this session yet.
+        </p>
+      </div>
+    </div>
+
+    <!-- BOTTOM NAV -->
+    <nav class="bottom-nav" id="bottomNav" style="display: none">
+      <button class="nav-btn active" id="navScan" onclick="showTab('scanner')">
+        <span>📷</span>Scan
+      </button>
+      <button class="nav-btn" id="navHistory" onclick="showTab('history')">
+        <span>📋</span>History
+      </button>
+      <button class="nav-btn" onclick="window.location.href = 'index.html'">
+        <span>🏠</span>Meal App
+      </button>
+    </nav>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      const SUPABASE_URL = "https://epajylwwiulivycpppja.supabase.co";
+      const SUPABASE_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVwYWp5bHd3aXVsaXZ5Y3BwcGphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4OTg2NjcsImV4cCI6MjEwMDQ3NDY2N30.DxqorwcW_24uUuhGY7FE2odxdR4-xq4hTRF4tJhmvC4";
+      const ADMIN_PASSWORD = "TrinityWhatever2!!";
+      const HEADERS = {
+        apikey: SUPABASE_KEY,
+        Authorization: "Bearer " + SUPABASE_KEY,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      };
+
+      let cameraRunning = false;
+      let sessionHistory = [];
+
+      // ── LOGIN ──
+      function doLogin() {
+        if (document.getElementById("loginPw").value === ADMIN_PASSWORD) {
+          document.getElementById("screenLogin").classList.remove("active");
+          document.getElementById("screenScanner").classList.add("active");
+          document.getElementById("bottomNav").style.display = "flex";
+          startCamera();
+        } else {
+          document.getElementById("loginErr").style.display = "block";
+        }
+      }
+
+      // ── TABS ──
+      function showTab(tab) {
+        document
+          .querySelectorAll(".screen")
+          .forEach((s) => s.classList.remove("active"));
+        document
+          .querySelectorAll(".nav-btn")
+          .forEach((b) => b.classList.remove("active"));
+        if (tab === "scanner") {
+          document.getElementById("screenScanner").classList.add("active");
+          document.getElementById("navScan").classList.add("active");
+          if (!cameraRunning) startCamera();
+        } else {
+          document.getElementById("screenHistory").classList.add("active");
+          document.getElementById("navHistory").classList.add("active");
+          stopCamera();
+          renderHistory();
+        }
+      }
+
+      // ── CAMERA ──
+      function startCamera() {
+        if (cameraRunning) return;
+        setStatus("Starting camera...", "");
+        Quagga.init(
+          {
+            inputStream: {
+              name: "Live",
+              type: "LiveStream",
+              target: document.getElementById("scannerContainer"),
+              constraints: {
+                facingMode: "environment",
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              },
+            },
+            decoder: {
+              readers: [
+                "ean_reader",
+                "ean_8_reader",
+                "upc_reader",
+                "upc_e_reader",
+                "code_128_reader",
+              ],
+            },
+            locate: true,
+          },
+          function (err) {
+            if (err) {
+              setStatus("Camera error — use manual entry below", "error");
+              return;
+            }
+            Quagga.start();
+            cameraRunning = true;
+            document.getElementById("cameraToggleBtn").textContent =
+              "⏹ Stop Camera";
+            setStatus("Point camera at a barcode", "");
+          },
+        );
+
+        let lastCode = null,
+          lastTime = 0;
+        Quagga.onDetected(function (result) {
+          const code = result.codeResult.code;
+          const now = Date.now();
+          if (code === lastCode && now - lastTime < 3000) return;
+          lastCode = code;
+          lastTime = now;
+          if (navigator.vibrate) navigator.vibrate(100);
+          lookupBarcode(code);
+        });
+      }
+
+      function stopCamera() {
+        if (!cameraRunning) return;
+        Quagga.stop();
+        cameraRunning = false;
+        document.getElementById("cameraToggleBtn").textContent =
+          "▶ Start Camera";
+      }
+
+      function toggleCamera() {
+        cameraRunning ? stopCamera() : startCamera();
+      }
+
+      // ── LOOKUP ──
+      async function lookupBarcode(code) {
+        setStatus(
+          `<span class="spinner"></span> Looking up ${code}...`,
+          "loading",
+        );
+        document.getElementById("foodForm").style.display = "none";
+        try {
+          const res = await fetch(
+            `https://world.openfoodfacts.org/api/v0/product/${code}.json`,
+          );
+          const data = await res.json();
+          if (data.status !== 1 || !data.product) {
+            setStatus(`❌ Product not found for barcode ${code}`, "error");
+            populateForm(`Product ${code}`, "", 0, 0, 0);
+            return;
+          }
+          const p = data.product;
+          const n = p.nutriments || {};
+          const name = p.product_name || p.product_name_en || "Unknown Product";
+          const protein = n["proteins_serving"] ?? n["proteins_100g"] ?? 0;
+          const carbs =
+            n["carbohydrates_serving"] ?? n["carbohydrates_100g"] ?? 0;
+          const fat = n["fat_serving"] ?? n["fat_100g"] ?? 0;
+          const serving = p.serving_size || p.serving_quantity || "100g";
+          populateForm(name, serving, protein, carbs, fat);
+          setStatus(`✅ Found: ${name}`, "success");
+          stopCamera();
+        } catch (e) {
+          setStatus("❌ Lookup failed — fill in manually", "error");
+          populateForm("", "", 0, 0, 0);
+        }
+      }
+
+      async function lookupManual() {
+        const code = document.getElementById("manualBarcode").value.trim();
+        if (code) await lookupBarcode(code);
+      }
+
+      function populateForm(name, serving, p, c, f) {
+        document.getElementById("ffName").value = name;
+        document.getElementById("ffServing").value = serving;
+        document.getElementById("ffUnit").value = "";
+        document.getElementById("ffP").value = Math.round(p * 10) / 10;
+        document.getElementById("ffC").value = Math.round(c * 10) / 10;
+        document.getElementById("ffF").value = Math.round(f * 10) / 10;
+        document.getElementById("ffCat").value = "";
+        // Reset all tag checkboxes
+        document.querySelectorAll(".tag-option").forEach((el) => {
+          el.classList.remove("checked");
+          el.querySelector("input").checked = false;
+        });
+        document.getElementById("foodForm").style.display = "block";
+        document
+          .getElementById("foodForm")
+          .scrollIntoView({ behavior: "smooth" });
+      }
+
+      function toggleTag(el) {
+        const cb = el.querySelector("input[type='checkbox']");
+        cb.checked = !cb.checked;
+        el.classList.toggle("checked", cb.checked);
+      }
+
+      function resetForm() {
+        document.getElementById("foodForm").style.display = "none";
+        document.getElementById("manualBarcode").value = "";
+        setStatus("Point camera at a barcode", "");
+        if (!cameraRunning) startCamera();
+      }
+
+      // ── SAVE ──
+      async function saveFood() {
+        const name = document.getElementById("ffName").value.trim();
+        const serving = document.getElementById("ffServing").value.trim();
+        const unit = document.getElementById("ffUnit").value.trim();
+        const cat = document.getElementById("ffCat").value;
+        const p = parseFloat(document.getElementById("ffP").value) || 0;
+        const c = parseFloat(document.getElementById("ffC").value) || 0;
+        const f = parseFloat(document.getElementById("ffF").value) || 0;
+
+        const tags = Array.from(
+          document.querySelectorAll(".tag-option input:checked"),
+        ).map((cb) => cb.value);
+
+        if (!name || !cat) {
+          showToast("⚠️ Name and category are required", true);
+          return;
+        }
+        if (!tags.length) {
+          showToast("⚠️ Select at least one meal tag", true);
+          return;
+        }
+
+        const weightLabel = serving + (unit ? " " + unit : "");
+
+        try {
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/foods`, {
+            method: "POST",
+            headers: HEADERS,
+            body: JSON.stringify({
+              name,
+              weight_label: weightLabel || "1 serving",
+              category: cat,
+              protein: p,
+              carbs: c,
+              fat: f,
+              meal_tags: tags,
+            }),
+          });
+          if (res.ok) {
+            const [saved] = await res.json();
+            sessionHistory.unshift({
+              name,
+              weight_label: weightLabel,
+              category: cat,
+              protein: p,
+              carbs: c,
+              fat: f,
+              meal_tags: tags,
+            });
+            showToast("✅ " + name + " saved!");
+            resetForm();
+          } else {
+            showToast("❌ Failed to save", true);
+          }
+        } catch (e) {
+          showToast("❌ Network error", true);
+        }
+      }
+
+      // ── HISTORY ──
+      function renderHistory() {
+        const list = document.getElementById("historyList");
+        if (!sessionHistory.length) {
+          list.innerHTML = `<p style="color:var(--sub);font-size:0.9rem;">No foods added this session yet.</p>`;
+          return;
+        }
+        list.innerHTML = sessionHistory
+          .map(
+            (f) => `
+        <div class="history-item">
+            <div class="h-name">${f.name}</div>
+            <div class="h-macros">${f.protein}g P | ${f.carbs}g C | ${f.fat}g F — ${f.weight_label}</div>
+            <div class="h-tags">🏷 ${(f.meal_tags || []).join(", ")}</div>
+        </div>`,
+          )
+          .join("");
+      }
+
+      // ── UTILS ──
+      function setStatus(html, type) {
+        const el = document.getElementById("scanStatus");
+        el.innerHTML = html;
+        el.className = "scan-status" + (type ? " " + type : "");
+      }
+      let toastTimer;
+      function showToast(msg, isError = false) {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.className = "toast show" + (isError ? " error-toast" : "");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(
+          () => (t.className = "toast" + (isError ? " error-toast" : "")),
+          3000,
+        );
+      }
+    </script>
+  </body>
+</html>
