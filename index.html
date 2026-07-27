@@ -42,7 +42,9 @@
         .meal-card { background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); padding: 16px; }
         .meal-card.workout-focused { border-color: var(--accent-purple); background: #1e1b4b; }
         .meal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 8px; flex-wrap: wrap; gap: 6px; }
+        .meal-title-block { display: flex; flex-direction: column; gap: 2px; }
         .meal-title { font-size: 1.05rem; font-weight: bold; color: var(--accent-blue); }
+        .meal-sub { font-size: 0.78rem; color: var(--accent-purple); font-style: italic; }
         .meal-time { font-size: 0.85rem; color: var(--accent-orange); font-weight: bold; }
         .food-list { list-style: none; padding: 0; margin: 0; }
         .food-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; font-size: 0.9rem; border-bottom: 1px dashed #334155; flex-wrap: wrap; gap: 4px; }
@@ -121,7 +123,7 @@
 <div class="container">
     <header>
         <h1>Itemized Macro Bulking App</h1>
-        <p class="subtitle">Workout-Adaptive • Whole-Day Solver • Exact Targets</p>
+        <p class="subtitle">Workout-Adaptive • Template Meals • Exact Targets</p>
     </header>
     <div class="macro-targets">
         <div class="target-card"><div class="val" id="tgtP">158g</div><div class="lbl">Target Protein</div></div>
@@ -159,6 +161,7 @@
     <div class="meals-container" id="mealsContainer"></div>
 </div>
 
+<!-- ADMIN -->
 <div class="admin-overlay" id="adminOverlay">
     <div class="admin-panel">
         <button class="admin-close" onclick="closeAdmin()">✕</button>
@@ -247,46 +250,92 @@ const SUPABASE_URL   = "https://epajylwwiulivycpppja.supabase.co";
 const SUPABASE_KEY   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVwYWp5bHd3aXVsaXZ5Y3BwcGphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4OTg2NjcsImV4cCI6MjEwMDQ3NDY2N30.DxqorwcW_24uUuhGY7FE2odxdR4-xq4hTRF4tJhmvC4";
 const ADMIN_PASSWORD = "sirinafire2025";
 const HEADERS = { "apikey": SUPABASE_KEY, "Authorization": "Bearer " + SUPABASE_KEY, "Content-Type": "application/json", "Prefer": "return=representation" };
-
 const ALL_TAGS  = ["breakfast","snack","preworkout","lunch","dinner","evening"];
 const TAG_EMOJI = { breakfast:"🌅", snack:"🍎", preworkout:"⚡", lunch:"🥗", dinner:"🍽️", evening:"🌙" };
 
-// Foods scalable at 0.5x, 1x, 1.5x, 2x servings
-const SCALABLE_PROTEINS = true; // all protein category
-const SCALABLE_CARB_NAMES = [
-    "Brown Rice","Little Duos fresh Potatoes","Simply Nature QUINOA",
-    "Barilla Protein Pasta Angel Hair","Black Beans"
-];
-const SCALABLE_BREAD_NAMES = [
-    "Sola Bagel","Sara Lee Delightful Wheat Bread","XTREME Protein Plus Protein Fit Wraps"
-];
-const SCALE_OPTIONS = [0.5, 1.0, 1.5, 2.0];
-
-// Oatmeal bundle — always included
-const OATMEAL_BUNDLE = [
-    "Quaker 1-Minute Oats",
-    "Silk Unsweetened Almond Milk",
-    "Transparent Labs Whey Isolate",
-    "Blueberries"
-];
-
-// Fixed snack combos — locked, never randomized by solver
-const SNACK_YOGURT_PB = ["Dannon Oikos Triple Zero Yogurt","Members Mark Creamy Peanut Butter"];
-const SNACK_RICECAKE  = ["Plain Rice Cake","Members Mark Creamy Peanut Butter","Nutella"];
-
-// All names locked to snacks/oatmeal/fixed fats — excluded from solver pool
-const LOCKED_NAMES = new Set([
-    ...OATMEAL_BUNDLE,
-    "Dannon Oikos Triple Zero Yogurt","Members Mark Creamy Peanut Butter",
-    "Plain Rice Cake","Nutella","Medium Banana",
-    "Nature Valley Protein Granola","House Salad",
-    "Go Verden Avocado Cup","Olive Oil or Butter","G Hugues Dressing",
-    "1/3 Less Fat Fat Cream Cheese","Light Mayonnaise","Heinz No Sugar Tomato Ketchup",
-    "Mini peppers","Angel Sweet Mini Red Lady Sweet Tomatoes","mini cucumber"
-]);
-
 let TARGETS = { p: 158, c: 158, f: 93 };
 let foodDB  = [];
+
+// ── MEAL TEMPLATES ──
+// Each template defines fixed items + one scalable protein slot
+// protein: null means pick any protein from DB
+// sandwichOnly: true means only pick sandwich-friendly proteins
+
+const LUNCH_TEMPLATES = [
+    {
+        name: "Sandwich",
+        bread: ["Sola Bagel","Sara Lee Delightful Wheat Bread"],
+        protein: null, sandwichOnly: true,
+        sides: [
+            ["Great Value Par Skim Shredded Mozzarella","Sargento Ultra Thin Cheese"],
+            ["Light Mayonnaise","Heinz No Sugar Tomato Ketchup"]
+        ]
+    },
+    {
+        name: "Wrap",
+        bread: ["XTREME Protein Plus Protein Fit Wraps"],
+        protein: null, sandwichOnly: true,
+        sides: [
+            ["Great Value Par Skim Shredded Mozzarella","Sargento Ultra Thin Cheese"],
+            ["Go Verden Avocado Cup","Light Mayonnaise"]
+        ]
+    },
+    {
+        name: "Salad Plate",
+        bread: [],
+        protein: null, sandwichOnly: false,
+        fixed: ["House Salad"],
+        sides: [
+            ["Great Value Par Skim Shredded Mozzarella","Sargento Ultra Thin Cheese","Go Verden Avocado Cup"]
+        ]
+    },
+    {
+        name: "Egg Plate",
+        bread: ["Sola Bagel","Sara Lee Delightful Wheat Bread"],
+        protein: "Scrambled Eggs (2 Whole + 56g Whites)", sandwichOnly: false,
+        fixed: ["Aidells Chicken & Apple Sausage"],
+        sides: [["Go Verden Avocado Cup"]]
+    }
+];
+
+const DINNER_TEMPLATES = [
+    {
+        name: "Protein + Carb + Salad",
+        protein: null,
+        carb: ["Brown Rice","Little Duos fresh Potatoes","Simply Nature QUINOA","Barilla Protein Pasta Angel Hair","Black Beans"],
+        fixed: ["House Salad"],
+        fat: ["Olive Oil or Butter","Go Verden Avocado Cup"]
+    },
+    {
+        name: "Burger Plate",
+        protein: ["Members Mark Four Pepper Chicken Burger","Safe Catch Tuna Burgers"],
+        bread: ["Sola Bagel","Sara Lee Delightful Wheat Bread","XTREME Protein Plus Protein Fit Wraps"],
+        fixed: ["House Salad"],
+        fat: ["Go Verden Avocado Cup","Sargento Ultra Thin Cheese","Great Value Par Skim Shredded Mozzarella"]
+    },
+    {
+        name: "Chicken Fajitas",
+        protein: ["Grilled Chicken Breast","Great Value Rotisserie Seasoned Chicken Breast",
+                  "Member's Mark Mesquite Grilled Chicken Fillets","Great Value 99% Fat Free Thinly Sliced Rotisserie Chicken"],
+        fixed: ["XTREME Protein Plus Protein Fit Wraps","Mini peppers"],
+        fat: ["Sargento Ultra Thin Cheese","Great Value Par Skim Shredded Mozzarella"]
+    }
+];
+
+// Sandwich-friendly proteins
+const SANDWICH_PROTEINS = [
+    "Great Value Thinly Sliced Turkey","Great Value 99% Fat Free Thinly Sliced Rotisserie Chicken",
+    "Great Value Rotisserie Seasoned Chicken Breast","Canned Tuna in Water",
+    "Starkist Solid White Albacore Canned Tuna (Drained)",
+    "Member's Mark Farm Raised Jumbo Cooked Shrimp",
+    "Member's Mark Mesquite Grilled Chicken Fillets"
+];
+
+// Oatmeal bundle
+const OATMEAL_BUNDLE = ["Quaker 1-Minute Oats","Silk Unsweetened Almond Milk","Transparent Labs Whey Isolate","Blueberries"];
+const SNACK_YOGURT_PB = ["Dannon Oikos Triple Zero Yogurt","Members Mark Creamy Peanut Butter"];
+const SNACK_RICECAKE  = ["Plain Rice Cake","Members Mark Creamy Peanut Butter","Nutella"];
+const SCALE_OPTIONS   = [0.5, 1.0, 1.5, 2.0];
 
 const schedules = {
     Mon: { type:"pm",       desc:"🏋️‍♂️ Training: 5:00 PM Trainer Session" },
@@ -336,312 +385,228 @@ const SLOT_DEFS = {
 };
 
 // ── UTILS ──
-function r1(n) { return Math.round(n * 10) / 10; }
+function r1(n) { return Math.round(n*10)/10; }
 function setStatus(msg, isError=false) {
     const bar = document.getElementById("statusBar");
-    bar.textContent = msg; bar.className = "status-bar visible" + (isError ? " error" : "");
-    if (!isError) setTimeout(() => bar.classList.remove("visible"), 3000);
+    bar.textContent = msg; bar.className = "status-bar visible"+(isError?" error":"");
+    if (!isError) setTimeout(()=>bar.classList.remove("visible"),3000);
 }
-function shuffle(arr) { const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
-function sumMacros(items) { return items.reduce((a,i) => ({p:a.p+(+i.p||0), c:a.c+(+i.c||0), f:a.f+(+i.f||0)}), {p:0,c:0,f:0}); }
-function calcKcal(m) { return Math.round(m.p*4 + m.c*4 + m.f*9); }
+function getRandom(arr) { return arr.length ? arr[Math.floor(Math.random()*arr.length)] : null; }
+function shuffle(arr)   { const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+function sumMacros(items) { return items.reduce((a,i)=>({p:a.p+(+i.p||0),c:a.c+(+i.c||0),f:a.f+(+i.f||0)}),{p:0,c:0,f:0}); }
+function calcKcal(m) { return Math.round(m.p*4+m.c*4+m.f*9); }
+function extractGrams(label) { const m=(label||"").match(/(\d+(?:\.\d+)?)\s*g/); return m?parseFloat(m[1]):null; }
 
-function normFood(f, multiplier=1) {
-    const p = r1(+f.protein * multiplier);
-    const c = r1(+f.carbs   * multiplier);
-    const fv= r1(+f.fat     * multiplier);
-    const baseGrams = (() => { const m=(f.weight_label||"").match(/(\d+(?:\.\d+)?)\s*g/); return m?parseFloat(m[1]):null; })();
-    let weight = f.weight_label;
-    if (multiplier !== 1 && baseGrams) weight = `${Math.round(baseGrams*multiplier)}g (${multiplier}x)`;
-    else if (multiplier !== 1) weight = `${multiplier}x serving`;
-    return { id:f.id, name:f.name, weight, p, c, f:fv, category:f.category, meal_tags:f.meal_tags||[], multiplier };
+function getFood(name) {
+    const f = foodDB.find(x=>x.name===name);
+    if (!f) return null;
+    return { id:f.id, name:f.name, weight:f.weight_label, p:+f.protein, c:+f.carbs, f:+f.fat, category:f.category, baseGrams:extractGrams(f.weight_label), multiplier:1 };
 }
 
-function isScalable(f) {
-    return f.category === "protein"
-        || SCALABLE_CARB_NAMES.includes(f.name)
-        || SCALABLE_BREAD_NAMES.includes(f.name);
+function getFoods(names) {
+    return names.map(n=>getFood(n)).filter(Boolean);
 }
 
-// ── SOLVER ──
-// Uses a combination approach:
-// 1. Lock oatmeal bundle
-// 2. Try random combinations of scalable foods at different multipliers
-// 3. Score each combination by closeness to targets
-// 4. Pick the best combination found across N attempts
-function solveDayMacros(snack1Items, snack2Items, preWoItems) {
-    const TOLERANCE = 6;
-    const ATTEMPTS  = 80;
+function scaleFood(food, mult) {
+    const bg = food.baseGrams;
+    return {
+        ...food,
+        p: r1(food.p*mult), c: r1(food.c*mult), f: r1(food.f*mult),
+        weight: bg ? `${Math.round(bg*mult)}g` : food.weight,
+        multiplier: mult,
+        baseWeight: food.weight
+    };
+}
 
-    // Get oatmeal bundle
-    const oatmealItems = OATMEAL_BUNDLE
-        .map(name => { const f=foodDB.find(x=>x.name===name); return f?normFood(f):null; })
-        .filter(Boolean);
-
-    // Sum ALL fixed items (oatmeal + all snacks + fixed dinner sides) so solver knows exactly what's left
-    const dinnerFatNames = ["Olive Oil or Butter","Go Verden Avocado Cup"];
-    const dinnerFatName  = dinnerFatNames[Math.floor(Math.random() * dinnerFatNames.length)];
-    const dinnerFatFood  = foodDB.find(f => f.name === dinnerFatName);
-    const dinnerFat      = dinnerFatFood ? normFood(dinnerFatFood) : null;
-    const saladFood      = foodDB.find(f => f.name === "House Salad");
-    const dinnerSalad    = saladFood ? normFood(saladFood) : null;
-
-    const allFixed = [
-        ...oatmealItems, ...snack1Items, ...snack2Items, ...preWoItems,
-        ...(dinnerFat   ? [dinnerFat]   : []),
-        ...(dinnerSalad ? [dinnerSalad] : [])
-    ];
-    const fixedMacros = sumMacros(allFixed);
-
-    // What the solver needs to hit with lunch + dinner foods only
-    const needP = Math.max(0, TARGETS.p - fixedMacros.p);
-    const needC = Math.max(0, TARGETS.c - fixedMacros.c);
-    const needF = Math.max(0, TARGETS.f - fixedMacros.f);
-
-    // Split DB — exclude all locked names
-    const scalablePool = foodDB.filter(f =>
-        isScalable(f) && !LOCKED_NAMES.has(f.name) && (+f.protein + +f.carbs + +f.fat) > 1
+function getRandomProtein(sandwichOnly, excludeNames=[]) {
+    const pool = foodDB.filter(f =>
+        f.category === "protein" &&
+        !excludeNames.includes(f.name) &&
+        (!sandwichOnly || SANDWICH_PROTEINS.includes(f.name))
     );
-    const fixedPool = foodDB.filter(f =>
-        !isScalable(f) && !LOCKED_NAMES.has(f.name) && (+f.protein + +f.carbs + +f.fat) > 1
-    );
+    return getRandom(shuffle(pool));
+}
 
-    // Score: how close does this selection get to needP/needC/needF
-    function score(items) {
-        const m  = sumMacros(items);
-        const dp = Math.abs(needP - m.p);
-        const dc = Math.abs(needC - m.c);
-        const df = Math.abs(needF - m.f);
-        const overP = Math.max(0, m.p - needP) * 2;
-        const overC = Math.max(0, m.c - needC) * 2;
-        const overF = Math.max(0, m.f - needF) * 2;
-        return dp + dc + df + overP + overC + overF;
+// ── BUILD LUNCH ──
+function buildLunch(needP, needC, needF, excludeProteins) {
+    const tmpl = getRandom(shuffle(LUNCH_TEMPLATES));
+    const items = [];
+
+    // Bread (optional for most templates, pick randomly from list)
+    let bread = null;
+    if (tmpl.bread && tmpl.bread.length) {
+        const breadName = getRandom(tmpl.bread);
+        bread = getFood(breadName);
+        if (bread) items.push(bread);
     }
 
-    // Sandwich-friendly proteins (go with bread/wrap)
-    const SANDWICH_PROTEINS = [
-        "Great Value Thinly Sliced Turkey","Great Value 99% Fat Free Thinly Sliced Rotisserie Chicken",
-        "Great Value Rotisserie Seasoned Chicken Breast","Canned Tuna in Water",
-        "Starkist Solid White Albacore Canned Tuna (Drained)",
-        "Scrambled Eggs (2 Whole + 56g Whites)","Member's Mark Farm Raised Jumbo Cooked Shrimp",
-        "Member's Mark Mesquite Grilled Chicken Fillets"
-    ];
+    // Protein — fixed or random
+    let proteinFood = null;
+    if (typeof tmpl.protein === "string") {
+        proteinFood = getFood(tmpl.protein);
+    } else {
+        const raw = getRandomProtein(tmpl.sandwichOnly, excludeProteins);
+        if (raw) proteinFood = { id:raw.id, name:raw.name, weight:raw.weight_label, p:+raw.protein, c:+raw.carbs, f:+raw.fat, category:raw.category, baseGrams:extractGrams(raw.weight_label), multiplier:1 };
+    }
 
-    let bestItems = [];
-    let bestScore = Infinity;
+    // Scale protein to hit needP
+    if (proteinFood && proteinFood.p > 0 && proteinFood.baseGrams) {
+        const ratio = needP / proteinFood.p;
+        const best  = SCALE_OPTIONS.reduce((a,b) => Math.abs(b-ratio)<Math.abs(a-ratio)?b:a);
+        proteinFood = scaleFood(proteinFood, best);
+    }
+    if (proteinFood) items.push(proteinFood);
 
-    for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
-        const selected  = [];
-        const usedNames = new Set(LOCKED_NAMES);
+    // Fixed items
+    if (tmpl.fixed) getFoods(tmpl.fixed).forEach(f=>items.push(f));
 
-        // Decide bread first — if bread, pick sandwich protein for lunch; otherwise any protein
-        const hasBread = Math.random() > 0.4;
-        let lunchBread = null;
-        if (hasBread) {
-            const breads = shuffle(scalablePool.filter(f => SCALABLE_BREAD_NAMES.includes(f.name)));
-            if (breads.length) {
-                const mult = SCALE_OPTIONS[Math.floor(Math.random() * SCALE_OPTIONS.length)];
-                lunchBread = normFood(breads[0], mult);
-                selected.push(lunchBread);
-                usedNames.add(breads[0].name);
-            }
-        }
-
-        // Pick lunch protein — sandwich-friendly if bread, any protein if no bread
-        const lunchProteinPool = shuffle(scalablePool.filter(f =>
-            f.category === "protein" &&
-            !usedNames.has(f.name) &&
-            (hasBread ? SANDWICH_PROTEINS.includes(f.name) : true)
-        ));
-        if (lunchProteinPool.length) {
-            const f    = lunchProteinPool[0];
-            const mult = SCALE_OPTIONS[Math.floor(Math.random() * SCALE_OPTIONS.length)];
-            selected.push(normFood(f, mult));
-            usedNames.add(f.name);
-        }
-
-        // Pick dinner protein — any protein, different from lunch
-        const dinnerProteinPool = shuffle(scalablePool.filter(f =>
-            f.category === "protein" && !usedNames.has(f.name)
-        ));
-        if (dinnerProteinPool.length) {
-            const f    = dinnerProteinPool[0];
-            const mult = SCALE_OPTIONS[Math.floor(Math.random() * SCALE_OPTIONS.length)];
-            selected.push(normFood(f, mult));
-            usedNames.add(f.name);
-        }
-
-        // Pick 1 starchy carb at random multiplier
-        const starchyCarbs = shuffle(scalablePool.filter(f => SCALABLE_CARB_NAMES.includes(f.name) && !usedNames.has(f.name)));
-        if (starchyCarbs.length) {
-            const f    = starchyCarbs[0];
-            const mult = SCALE_OPTIONS[Math.floor(Math.random() * SCALE_OPTIONS.length)];
-            selected.push(normFood(f, mult));
-            usedNames.add(f.name);
-        }
-
-        // Pick 1-2 fixed items for variety (cheese etc)
-        const fixedCandidates = shuffle(fixedPool.filter(f => !usedNames.has(f.name))).slice(0, 2);
-        fixedCandidates.forEach(f => {
-            selected.push(normFood(f));
-            usedNames.add(f.name);
+    // Sides — pick one from each side group randomly
+    if (tmpl.sides) {
+        tmpl.sides.forEach(group => {
+            const pick = getRandom(group);
+            const food = getFood(pick);
+            if (food) items.push(food);
         });
-
-        // Fine-tune protein multiplier to hit needP
-        const curP = sumMacros(selected).p;
-        const gapP = needP - curP;
-        if (Math.abs(gapP) > TOLERANCE) {
-            const adjP = selected.filter(i => i.category === "protein").sort((a,b) => b.p - a.p)[0];
-            if (adjP) {
-                const base = foodDB.find(f => f.id === adjP.id);
-                if (base) {
-                    let bMult = adjP.multiplier, bGap = Math.abs(gapP);
-                    SCALE_OPTIONS.forEach(mult => {
-                        const t   = normFood(base, mult);
-                        const gap = Math.abs(needP - (curP - adjP.p + t.p));
-                        if (gap < bGap) { bGap = gap; bMult = mult; }
-                    });
-                    const idx = selected.indexOf(adjP);
-                    if (idx > -1) selected[idx] = normFood(base, bMult);
-                }
-            }
-        }
-
-        // Fine-tune carb multiplier to hit needC
-        const curC = sumMacros(selected).c;
-        const gapC = needC - curC;
-        if (Math.abs(gapC) > TOLERANCE) {
-            const adjC = selected.find(i => SCALABLE_CARB_NAMES.includes(i.name));
-            if (adjC) {
-                const base = foodDB.find(f => f.id === adjC.id);
-                if (base) {
-                    let bMult = adjC.multiplier, bGap = Math.abs(gapC);
-                    SCALE_OPTIONS.forEach(mult => {
-                        const t   = normFood(base, mult);
-                        const gap = Math.abs(needC - (curC - adjC.c + t.c));
-                        if (gap < bGap) { bGap = gap; bMult = mult; }
-                    });
-                    const idx = selected.indexOf(adjC);
-                    if (idx > -1) selected[idx] = normFood(base, bMult);
-                }
-            }
-        }
-
-        const s = score(selected);
-        if (s < bestScore) { bestScore = s; bestItems = [...selected]; }
-        if (bestScore <= TOLERANCE) break;
     }
 
-    return { solverItems: bestItems, oatmealItems, dinnerFat, dinnerSalad };
+    return { items, templateName: tmpl.name, proteinName: proteinFood?.name || null };
 }
 
-// ── DISTRIBUTE FOODS ACROSS MEAL SLOTS ──
-function distributeFoods(foods, schedType, snack1Items, snack2Items, preWoItems, isPM, dinnerFat, dinnerSalad) {
-    const slots     = SLOT_DEFS[schedType];
-    const nonHydro  = slots.filter(s => !s.isHydrationOnly);
-    const mealCount = nonHydro.length;
+// ── BUILD DINNER ──
+function buildDinner(needP, needC, needF, excludeProteins) {
+    const tmpl = getRandom(shuffle(DINNER_TEMPLATES));
+    const items = [];
 
-    // Solver foods
-    const oatmeal    = foods.filter(f => OATMEAL_BUNDLE.includes(f.name));
-    const proteins   = shuffle(foods.filter(f => f.category === "protein"));
-    const starchyC   = foods.filter(f => SCALABLE_CARB_NAMES.includes(f.name));
-    const breads     = foods.filter(f => SCALABLE_BREAD_NAMES.includes(f.name));
-    const fats       = foods.filter(f => f.category === "fat" && !LOCKED_NAMES.has(f.name));
-    const extras     = foods.filter(f =>
-        !OATMEAL_BUNDLE.includes(f.name) && !proteins.includes(f) &&
-        !starchyC.includes(f) && !breads.includes(f) && !fats.includes(f) &&
-        !LOCKED_NAMES.has(f.name)
-    );
-
-    // Fixed dinner sides — passed in from solver (already accounted for in macro calc)
-
-    const assignments = nonHydro.map(() => []);
-
-    // Slot indices depend on schedule type
-    const bfIdx      = 0;
-    const snack1Idx  = 1;
-    const lunchIdx   = 2;
-    const preWoIdx   = isPM ? 3 : -1;
-    const dinnerIdx  = isPM ? 5 : Math.min(4, mealCount-1);
-    const snack2Idx  = isPM ? 4 : Math.min(3, mealCount-1);
-
-    // Oatmeal → breakfast
-    oatmeal.forEach(f => assignments[bfIdx].push(f));
-
-    // Snack 1 → always yogurt + PB
-    snack1Items.forEach(f => assignments[snack1Idx].push(f));
-
-    // Pre-workout → fixed combo
-    if (preWoIdx >= 0) preWoItems.forEach(f => assignments[preWoIdx].push(f));
-
-    // Snack 2 → fixed combo
-    if (snack2Idx >= 0 && snack2Idx !== preWoIdx) snack2Items.forEach(f => assignments[snack2Idx].push(f));
-
-    // Proteins → MAX ONE per meal slot (lunch first, dinner second, rest ignored)
-    if (proteins[0]) assignments[lunchIdx].push(proteins[0]);
-    if (proteins[1]) assignments[Math.min(dinnerIdx, mealCount-1)].push(proteins[1]);
-
-    // Starchy carb → dinner only
-    starchyC.forEach(f => assignments[Math.min(dinnerIdx, mealCount-1)].push(f));
-
-    // Bread → lunch only (pairs with lunch protein)
-    if (breads[0]) assignments[lunchIdx].push(breads[0]);
-
-    // Fixed dinner fat → dinner
-    if (dinnerFat)   assignments[Math.min(dinnerIdx, mealCount-1)].push(dinnerFat);
-    // Fixed dinner salad → dinner
-    if (dinnerSalad) assignments[Math.min(dinnerIdx, mealCount-1)].push(dinnerSalad);
-
-    // Solver fats → dinner
-    fats.forEach(f => assignments[Math.min(dinnerIdx, mealCount-1)].push(f));
-
-    // Extras (cheese, toppings) → lunch or dinner, max 1 each
-    const shuffledExtras = shuffle(extras);
-    if (shuffledExtras[0]) assignments[lunchIdx].push(shuffledExtras[0]);
-    if (shuffledExtras[1]) assignments[Math.min(dinnerIdx, mealCount-1)].push(shuffledExtras[1]);
-
-    // Build result
-    const result = [];
-    let ai = 0;
-    for (const slot of slots) {
-        if (slot.isHydrationOnly) {
-            result.push({ ...slot, items:[{name:"Water / Electrolytes", weight:"700ml+", p:0, c:0, f:0}] });
-            continue;
-        }
-        result.push({ ...slot, items: assignments[ai] || [] });
-        ai++;
+    // Protein — fixed list or any
+    let proteinFood = null;
+    if (tmpl.protein) {
+        const available = tmpl.protein.filter(n => !excludeProteins.includes(n));
+        const raw = getFood(getRandom(available.length ? available : tmpl.protein));
+        proteinFood = raw;
+    } else {
+        const raw = getRandomProtein(false, excludeProteins);
+        if (raw) proteinFood = { id:raw.id, name:raw.name, weight:raw.weight_label, p:+raw.protein, c:+raw.carbs, f:+raw.fat, category:raw.category, baseGrams:extractGrams(raw.weight_label), multiplier:1 };
     }
-    return result;
+
+    // Scale protein
+    if (proteinFood && proteinFood.p > 0 && proteinFood.baseGrams) {
+        const ratio = needP / proteinFood.p;
+        const best  = SCALE_OPTIONS.reduce((a,b) => Math.abs(b-ratio)<Math.abs(a-ratio)?b:a);
+        proteinFood = scaleFood(proteinFood, best);
+    }
+    if (proteinFood) items.push(proteinFood);
+
+    // Carb (for templates that have one) — scale to needC
+    if (tmpl.carb) {
+        const carbName = getRandom(tmpl.carb);
+        let carbFood   = getFood(carbName);
+        if (carbFood && carbFood.c > 0 && carbFood.baseGrams) {
+            const ratio = Math.max(0, needC - (items.reduce((s,i)=>s+i.c,0))) / carbFood.c;
+            const best  = SCALE_OPTIONS.reduce((a,b) => Math.abs(b-ratio)<Math.abs(a-ratio)?b:a);
+            carbFood = scaleFood(carbFood, Math.max(0.5, best));
+        }
+        if (carbFood) items.push(carbFood);
+    }
+
+    // Bread (for burger plate)
+    if (tmpl.bread) {
+        const breadName = getRandom(tmpl.bread);
+        const bread = getFood(breadName);
+        if (bread) items.push(bread);
+    }
+
+    // Fixed items
+    if (tmpl.fixed) getFoods(tmpl.fixed).forEach(f=>items.push(f));
+
+    // Fat — pick one from fat list
+    if (tmpl.fat) {
+        const fatName = getRandom(tmpl.fat);
+        const fat = getFood(fatName);
+        if (fat) items.push(fat);
+    }
+
+    return { items, templateName: tmpl.name };
 }
 
-// ── MAIN ──
+// ── MAIN GENERATE ──
 function generateMealPlan() {
     if (!foodDB.length) { setStatus("⏳ Still loading, try again.", true); return; }
+
     const dayKey    = document.getElementById("daySelect").value;
     const schedType = schedules[dayKey].type;
     const isPM      = schedType === "pm";
+    const slots     = SLOT_DEFS[schedType];
 
-    // Decide fixed snack combos first
+    // Fixed snack combos
     const useRiceCakePreWo  = Math.random() < 0.5;
     const useRiceCakeSnack2 = !useRiceCakePreWo && Math.random() < 0.5;
 
-    function getItems(names) {
-        return names.map(n => { const f=foodDB.find(x=>x.name===n); return f?normFood(f):null; }).filter(Boolean);
+    const oatmealItems = getFoods(OATMEAL_BUNDLE);
+    const snack1Items  = getFoods(SNACK_YOGURT_PB);
+    const preWoItems   = useRiceCakePreWo ? getFoods(SNACK_RICECAKE) : getFoods(["Medium Banana","Members Mark Creamy Peanut Butter"]);
+    const snack2Items  = useRiceCakeSnack2 ? getFoods(SNACK_RICECAKE) : getFoods(SNACK_YOGURT_PB);
+
+    // Sum all fixed macros
+    const fixedAll = [...oatmealItems, ...snack1Items, ...snack2Items, ...preWoItems];
+    const fixedM   = sumMacros(fixedAll);
+
+    // What lunch + dinner need to provide together
+    const totalNeedP = Math.max(0, TARGETS.p - fixedM.p);
+    const totalNeedC = Math.max(0, TARGETS.c - fixedM.c);
+    const totalNeedF = Math.max(0, TARGETS.f - fixedM.f);
+
+    // Split P and C between lunch and dinner (60% dinner, 40% lunch for protein)
+    const lunchNeedP = r1(totalNeedP * 0.4);
+    const dinnerNeedP = r1(totalNeedP * 0.6);
+    const lunchNeedC = r1(totalNeedC * 0.3);  // lunch is lower carb
+    const dinnerNeedC = r1(totalNeedC * 0.7); // dinner gets the starchy carb
+
+    // Build lunch
+    const lunch = buildLunch(lunchNeedP, lunchNeedC, totalNeedF * 0.4, []);
+
+    // Build dinner — different protein from lunch
+    const excludeFromDinner = lunch.proteinName ? [lunch.proteinName] : [];
+    const dinner = buildDinner(dinnerNeedP, dinnerNeedC, totalNeedF * 0.6, excludeFromDinner);
+
+    // Assign to slots
+    const nonHydro = slots.filter(s=>!s.isHydrationOnly);
+    const mealCount = nonHydro.length;
+    const bfIdx     = 0;
+    const snack1Idx = 1;
+    const lunchIdx  = 2;
+    const preWoIdx  = isPM ? 3 : -1;
+    const dinnerIdx = isPM ? 5 : Math.min(4, mealCount-1);
+    const snack2Idx = isPM ? 4 : Math.min(3, mealCount-1);
+    const eveningIdx = mealCount - 1;
+
+    const assignments = nonHydro.map(()=>[]);
+    assignments[bfIdx] = oatmealItems;
+    assignments[snack1Idx] = snack1Items;
+    assignments[lunchIdx] = lunch.items;
+    if (preWoIdx >= 0) assignments[preWoIdx] = preWoItems;
+    if (snack2Idx >= 0 && snack2Idx !== preWoIdx) assignments[snack2Idx] = snack2Items;
+    assignments[Math.min(dinnerIdx, mealCount-1)] = dinner.items;
+    // Evening slot is empty unless we have leftover macros
+    assignments[eveningIdx] = [];
+
+    // Build meals
+    const meals = [];
+    let ai = 0;
+    for (const slot of slots) {
+        if (slot.isHydrationOnly) {
+            meals.push({...slot, items:[{name:"Water / Electrolytes",weight:"700ml+",p:0,c:0,f:0}]});
+            continue;
+        }
+        const isMealLunch  = ai === lunchIdx;
+        const isMealDinner = ai === (isPM ? 5 : Math.min(4,mealCount-1));
+        meals.push({
+            ...slot,
+            items: assignments[ai] || [],
+            sub: isMealLunch ? lunch.templateName : isMealDinner ? dinner.templateName : null
+        });
+        ai++;
     }
 
-    const preWoItems  = useRiceCakePreWo
-        ? getItems(SNACK_RICECAKE)
-        : getItems(["Medium Banana","Members Mark Creamy Peanut Butter"]);
-    const snack1Items = getItems(SNACK_YOGURT_PB);
-    const snack2Items = useRiceCakeSnack2
-        ? getItems(SNACK_RICECAKE)
-        : getItems(SNACK_YOGURT_PB);
-
-    // Solve for lunch/dinner foods only — solver already knows what snacks + dinner sides cost
-    const { solverItems, oatmealItems, dinnerFat, dinnerSalad } = solveDayMacros(snack1Items, snack2Items, preWoItems);
-
-    const allFoods = [...oatmealItems, ...solverItems];
-    const meals    = distributeFoods(allFoods, schedType, snack1Items, snack2Items, preWoItems, isPM, dinnerFat, dinnerSalad);
     renderMeals(meals);
     updateDailySummary(meals);
 }
@@ -653,21 +618,21 @@ function updateSchedule() {
 }
 
 function updateDailySummary(meals) {
-    const allItems = meals.flatMap(m => m.isHydrationOnly ? [] : (m.items||[]));
+    const allItems = meals.flatMap(m=>m.isHydrationOnly?[]:(m.items||[]));
     const totals   = sumMacros(allItems);
     const kcal     = calcKcal(totals);
-    const tKcal    = Math.round(TARGETS.p*4 + TARGETS.c*4 + TARGETS.f*9);
+    const tKcal    = Math.round(TARGETS.p*4+TARGETS.c*4+TARGETS.f*9);
     document.getElementById("dailySummary").style.display = "grid";
     [{id:"sumP",dId:"deltaP",val:r1(totals.p),tgt:TARGETS.p,unit:"g"},
      {id:"sumC",dId:"deltaC",val:r1(totals.c),tgt:TARGETS.c,unit:"g"},
      {id:"sumF",dId:"deltaF",val:r1(totals.f),tgt:TARGETS.f,unit:"g"},
      {id:"sumK",dId:"deltaK",val:kcal,tgt:tKcal,unit:" kcal"}
-    ].forEach(({id,dId,val,tgt,unit}) => {
+    ].forEach(({id,dId,val,tgt,unit})=>{
         document.getElementById(id).textContent = val+unit;
-        const diff = r1(val-tgt), el = document.getElementById(dId);
-        if (Math.abs(diff) <= 8) { el.textContent="✓ On target"; el.className="delta on-target"; }
-        else if (diff > 0)       { el.textContent=`+${diff}${unit} over`; el.className="delta over"; }
-        else                     { el.textContent=`${diff}${unit} under`; el.className="delta under"; }
+        const diff=r1(val-tgt), el=document.getElementById(dId);
+        if(Math.abs(diff)<=8){el.textContent="✓ On target";el.className="delta on-target";}
+        else if(diff>0){el.textContent=`+${diff}${unit} over`;el.className="delta over";}
+        else{el.textContent=`${diff}${unit} under`;el.className="delta under";}
     });
 }
 
@@ -678,16 +643,16 @@ function renderMeals(meals) {
         const card = document.createElement("div");
         card.className = "meal-card"+(meal.isWorkout?" workout-focused":"");
         if (meal.isHydrationOnly) {
-            card.innerHTML=`<div class="meal-header"><span class="meal-title">${meal.title}</span><span class="meal-time">${meal.time}</span></div><div class="rest-note">🏋️ Training Session — Hydration Focus</div>`;
+            card.innerHTML=`<div class="meal-header"><div class="meal-title-block"><span class="meal-title">${meal.title}</span></div><span class="meal-time">${meal.time}</span></div><div class="rest-note">🏋️ Training Session — Hydration Focus</div>`;
             container.appendChild(card); return;
         }
-        const items = meal.items||[];
+        const items = (meal.items||[]);
         if (!items.length) {
-            card.innerHTML=`<div class="meal-header"><span class="meal-title">${meal.title}</span><span class="meal-time">${meal.time}</span></div><div class="rest-note">—</div>`;
+            card.innerHTML=`<div class="meal-header"><div class="meal-title-block"><span class="meal-title">${meal.title}</span></div><span class="meal-time">${meal.time}</span></div><div class="rest-note">—</div>`;
             container.appendChild(card); return;
         }
         const mealM = sumMacros(items);
-        const itemsHTML = items.map(item => {
+        const itemsHTML = items.map(item=>{
             const isScaled = item.multiplier && item.multiplier !== 1;
             return `<li class="food-item${isScaled?" scaled":""}">
                 <div class="food-details">
@@ -699,7 +664,10 @@ function renderMeals(meals) {
         }).join("");
         card.innerHTML=`
             <div class="meal-header">
-                <span class="meal-title">${meal.title}</span>
+                <div class="meal-title-block">
+                    <span class="meal-title">${meal.title}</span>
+                    ${meal.sub?`<span class="meal-sub">📋 ${meal.sub}</span>`:""}
+                </div>
                 <span class="meal-time">${meal.time}</span>
             </div>
             <ul class="food-list">${itemsHTML}</ul>
