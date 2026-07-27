@@ -418,6 +418,13 @@ function scaleFood(food, mult) {
     };
 }
 
+// Scale food to hit an exact macro target amount
+function scaleFoodToTarget(food, macro, targetAmount) {
+    if (!food || food[macro] <= 0 || !food.baseGrams) return food;
+    const mult = Math.max(0.5, Math.min(4.0, targetAmount / food[macro]));
+    return scaleFood(food, r1(mult));
+}
+
 function getRandomProtein(sandwichOnly, excludeNames=[]) {
     const pool = foodDB.filter(f =>
         f.category === "protein" &&
@@ -449,11 +456,9 @@ function buildLunch(needP, needC, needF, excludeProteins) {
         if (raw) proteinFood = { id:raw.id, name:raw.name, weight:raw.weight_label, p:+raw.protein, c:+raw.carbs, f:+raw.fat, category:raw.category, baseGrams:extractGrams(raw.weight_label), multiplier:1 };
     }
 
-    // Scale protein to hit needP
+    // Scale protein to hit needP exactly
     if (proteinFood && proteinFood.p > 0 && proteinFood.baseGrams) {
-        const ratio = needP / proteinFood.p;
-        const best  = SCALE_OPTIONS.reduce((a,b) => Math.abs(b-ratio)<Math.abs(a-ratio)?b:a);
-        proteinFood = scaleFood(proteinFood, best);
+        proteinFood = scaleFoodToTarget(proteinFood, "p", needP);
     }
     if (proteinFood) items.push(proteinFood);
 
@@ -488,22 +493,19 @@ function buildDinner(needP, needC, needF, excludeProteins) {
         if (raw) proteinFood = { id:raw.id, name:raw.name, weight:raw.weight_label, p:+raw.protein, c:+raw.carbs, f:+raw.fat, category:raw.category, baseGrams:extractGrams(raw.weight_label), multiplier:1 };
     }
 
-    // Scale protein
+    // Scale protein exactly
     if (proteinFood && proteinFood.p > 0 && proteinFood.baseGrams) {
-        const ratio = needP / proteinFood.p;
-        const best  = SCALE_OPTIONS.reduce((a,b) => Math.abs(b-ratio)<Math.abs(a-ratio)?b:a);
-        proteinFood = scaleFood(proteinFood, best);
+        proteinFood = scaleFoodToTarget(proteinFood, "p", needP);
     }
     if (proteinFood) items.push(proteinFood);
 
-    // Carb (for templates that have one) — scale to needC
+    // Carb — scale to hit needC exactly
     if (tmpl.carb) {
         const carbName = getRandom(tmpl.carb);
         let carbFood   = getFood(carbName);
         if (carbFood && carbFood.c > 0 && carbFood.baseGrams) {
-            const ratio = Math.max(0, needC - (items.reduce((s,i)=>s+i.c,0))) / carbFood.c;
-            const best  = SCALE_OPTIONS.reduce((a,b) => Math.abs(b-ratio)<Math.abs(a-ratio)?b:a);
-            carbFood = scaleFood(carbFood, Math.max(0.5, best));
+            const proteinC = proteinFood ? proteinFood.c : 0;
+            carbFood = scaleFoodToTarget(carbFood, "c", Math.max(5, needC - proteinC));
         }
         if (carbFood) items.push(carbFood);
     }
@@ -555,11 +557,11 @@ function generateMealPlan() {
     const totalNeedC = Math.max(0, TARGETS.c - fixedM.c);
     const totalNeedF = Math.max(0, TARGETS.f - fixedM.f);
 
-    // Split P and C between lunch and dinner (60% dinner, 40% lunch for protein)
-    const lunchNeedP = r1(totalNeedP * 0.4);
-    const dinnerNeedP = r1(totalNeedP * 0.6);
-    const lunchNeedC = r1(totalNeedC * 0.3);  // lunch is lower carb
-    const dinnerNeedC = r1(totalNeedC * 0.7); // dinner gets the starchy carb
+    // Split P and C between lunch and dinner
+    const lunchNeedP  = r1(totalNeedP * 0.45);
+    const dinnerNeedP = r1(totalNeedP * 0.55);
+    const lunchNeedC  = r1(totalNeedC * 0.25);  // lunch is lower carb — mainly protein
+    const dinnerNeedC = r1(totalNeedC * 0.75);  // dinner gets the starchy carb
 
     // Build lunch
     const lunch = buildLunch(lunchNeedP, lunchNeedC, totalNeedF * 0.4, []);
