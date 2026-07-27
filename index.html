@@ -570,26 +570,30 @@ function generateMealPlan() {
     const excludeFromDinner = lunch.proteinName ? [lunch.proteinName] : [];
     const dinner = buildDinner(dinnerNeedP, dinnerNeedC, totalNeedF * 0.6, excludeFromDinner);
 
-    // Assign to slots
-    const nonHydro = slots.filter(s=>!s.isHydrationOnly);
+    // Assign to slots — indices based on SLOT_DEFS order
+    const nonHydro  = slots.filter(s=>!s.isHydrationOnly);
     const mealCount = nonHydro.length;
-    const bfIdx     = 0;
-    const snack1Idx = 1;
-    const lunchIdx  = 2;
-    const preWoIdx  = isPM ? 3 : -1;
-    const dinnerIdx = isPM ? 5 : Math.min(4, mealCount-1);
-    const snack2Idx = isPM ? 4 : Math.min(3, mealCount-1);
-    const eveningIdx = mealCount - 1;
+
+    // Find correct indices by matching slot titles
+    const slotTitles = nonHydro.map(s=>s.title);
+    const findIdx = (keywords) => slotTitles.findIndex(t => keywords.some(k=>t.toLowerCase().includes(k)));
+
+    const bfIdx      = findIdx(["breakfast","post-workout breakfast"]);
+    const snack1Idx  = findIdx(["mid-morning"]);
+    const lunchIdx   = findIdx(["lunch"]);
+    const preWoIdx   = findIdx(["pre-workout fuel"]);
+    const dinnerIdx  = findIdx(["dinner"]);
+    const snack2Idx  = findIdx(["afternoon snack"]);
+    const eveningIdx = findIdx(["evening"]);
 
     const assignments = nonHydro.map(()=>[]);
-    assignments[bfIdx] = oatmealItems;
-    assignments[snack1Idx] = snack1Items;
-    assignments[lunchIdx] = lunch.items;
-    if (preWoIdx >= 0) assignments[preWoIdx] = preWoItems;
-    if (snack2Idx >= 0 && snack2Idx !== preWoIdx) assignments[snack2Idx] = snack2Items;
-    assignments[Math.min(dinnerIdx, mealCount-1)] = dinner.items;
-    // Evening slot is empty unless we have leftover macros
-    assignments[eveningIdx] = [];
+    if (bfIdx     >= 0) assignments[bfIdx]     = oatmealItems;
+    if (snack1Idx >= 0) assignments[snack1Idx] = snack1Items;
+    if (lunchIdx  >= 0) assignments[lunchIdx]  = lunch.items;
+    if (preWoIdx  >= 0) assignments[preWoIdx]  = preWoItems;
+    if (snack2Idx >= 0) assignments[snack2Idx] = snack2Items;
+    if (dinnerIdx >= 0) assignments[dinnerIdx] = dinner.items;
+    if (eveningIdx>= 0) assignments[eveningIdx]= [];
 
     // Build meals
     const meals = [];
@@ -600,7 +604,7 @@ function generateMealPlan() {
             continue;
         }
         const isMealLunch  = ai === lunchIdx;
-        const isMealDinner = ai === (isPM ? 5 : Math.min(4,mealCount-1));
+        const isMealDinner = ai === dinnerIdx;
         meals.push({
             ...slot,
             items: assignments[ai] || [],
