@@ -418,6 +418,15 @@ function solveDayMacros(snack1Items, snack2Items, preWoItems) {
         return dp + dc + df + overP + overC + overF;
     }
 
+    // Sandwich-friendly proteins (go with bread/wrap)
+    const SANDWICH_PROTEINS = [
+        "Great Value Thinly Sliced Turkey","Great Value 99% Fat Free Thinly Sliced Rotisserie Chicken",
+        "Great Value Rotisserie Seasoned Chicken Breast","Canned Tuna in Water",
+        "Starkist Solid White Albacore Canned Tuna (Drained)",
+        "Scrambled Eggs (2 Whole + 56g Whites)","Member's Mark Farm Raised Jumbo Cooked Shrimp",
+        "Member's Mark Mesquite Grilled Chicken Fillets"
+    ];
+
     let bestItems = [];
     let bestScore = Infinity;
 
@@ -425,17 +434,45 @@ function solveDayMacros(snack1Items, snack2Items, preWoItems) {
         const selected  = [];
         const usedNames = new Set(LOCKED_NAMES);
 
-        // Pick 1-2 proteins at random multipliers
-        const proteins = shuffle(scalablePool.filter(f => f.category === "protein")).slice(0, 2);
-        proteins.forEach(f => {
-            if (usedNames.has(f.name)) return;
+        // Decide bread first — if bread, pick sandwich protein for lunch; otherwise any protein
+        const hasBread = Math.random() > 0.4;
+        let lunchBread = null;
+        if (hasBread) {
+            const breads = shuffle(scalablePool.filter(f => SCALABLE_BREAD_NAMES.includes(f.name)));
+            if (breads.length) {
+                const mult = SCALE_OPTIONS[Math.floor(Math.random() * SCALE_OPTIONS.length)];
+                lunchBread = normFood(breads[0], mult);
+                selected.push(lunchBread);
+                usedNames.add(breads[0].name);
+            }
+        }
+
+        // Pick lunch protein — sandwich-friendly if bread, any protein if no bread
+        const lunchProteinPool = shuffle(scalablePool.filter(f =>
+            f.category === "protein" &&
+            !usedNames.has(f.name) &&
+            (hasBread ? SANDWICH_PROTEINS.includes(f.name) : true)
+        ));
+        if (lunchProteinPool.length) {
+            const f    = lunchProteinPool[0];
             const mult = SCALE_OPTIONS[Math.floor(Math.random() * SCALE_OPTIONS.length)];
             selected.push(normFood(f, mult));
             usedNames.add(f.name);
-        });
+        }
+
+        // Pick dinner protein — any protein, different from lunch
+        const dinnerProteinPool = shuffle(scalablePool.filter(f =>
+            f.category === "protein" && !usedNames.has(f.name)
+        ));
+        if (dinnerProteinPool.length) {
+            const f    = dinnerProteinPool[0];
+            const mult = SCALE_OPTIONS[Math.floor(Math.random() * SCALE_OPTIONS.length)];
+            selected.push(normFood(f, mult));
+            usedNames.add(f.name);
+        }
 
         // Pick 1 starchy carb at random multiplier
-        const starchyCarbs = shuffle(scalablePool.filter(f => SCALABLE_CARB_NAMES.includes(f.name)));
+        const starchyCarbs = shuffle(scalablePool.filter(f => SCALABLE_CARB_NAMES.includes(f.name) && !usedNames.has(f.name)));
         if (starchyCarbs.length) {
             const f    = starchyCarbs[0];
             const mult = SCALE_OPTIONS[Math.floor(Math.random() * SCALE_OPTIONS.length)];
@@ -443,19 +480,8 @@ function solveDayMacros(snack1Items, snack2Items, preWoItems) {
             usedNames.add(f.name);
         }
 
-        // Optionally pick 1 bread/wrap
-        if (Math.random() > 0.4) {
-            const breads = shuffle(scalablePool.filter(f => SCALABLE_BREAD_NAMES.includes(f.name)));
-            if (breads.length) {
-                const f    = breads[0];
-                const mult = SCALE_OPTIONS[Math.floor(Math.random() * SCALE_OPTIONS.length)];
-                selected.push(normFood(f, mult));
-                usedNames.add(f.name);
-            }
-        }
-
-        // Pick 1-3 fixed items for fat and variety (cheese, avocado, salad toppings)
-        const fixedCandidates = shuffle(fixedPool.filter(f => !usedNames.has(f.name))).slice(0, 3);
+        // Pick 1-2 fixed items for variety (cheese etc)
+        const fixedCandidates = shuffle(fixedPool.filter(f => !usedNames.has(f.name))).slice(0, 2);
         fixedCandidates.forEach(f => {
             selected.push(normFood(f));
             usedNames.add(f.name);
