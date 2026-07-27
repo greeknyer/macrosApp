@@ -557,18 +557,18 @@ function generateMealPlan() {
     const totalNeedC = Math.max(0, TARGETS.c - fixedM.c);
     const totalNeedF = Math.max(0, TARGETS.f - fixedM.f);
 
-    // Split P and C between lunch and dinner
-    const lunchNeedP  = r1(totalNeedP * 0.45);
-    const dinnerNeedP = r1(totalNeedP * 0.55);
-    const lunchNeedC  = r1(totalNeedC * 0.25);  // lunch is lower carb — mainly protein
-    const dinnerNeedC = r1(totalNeedC * 0.75);  // dinner gets the starchy carb
+    // Build lunch — pass full remaining need, let buildLunch solve exactly
+    const lunch = buildLunch(totalNeedP * 0.45, totalNeedC * 0.25, totalNeedF * 0.4, []);
 
-    // Build lunch
-    const lunch = buildLunch(lunchNeedP, lunchNeedC, totalNeedF * 0.4, []);
+    // After lunch is built, recalculate what's actually left for dinner
+    const lunchMacros  = sumMacros(lunch.items);
+    const dinnerNeedP  = Math.max(5, totalNeedP - lunchMacros.p);
+    const dinnerNeedC  = Math.max(5, totalNeedC - lunchMacros.c);
+    const dinnerNeedF  = Math.max(5, totalNeedF - lunchMacros.f);
 
-    // Build dinner — different protein from lunch
+    // Build dinner — different protein from lunch, using exactly what's left
     const excludeFromDinner = lunch.proteinName ? [lunch.proteinName] : [];
-    const dinner = buildDinner(dinnerNeedP, dinnerNeedC, totalNeedF * 0.6, excludeFromDinner);
+    const dinner = buildDinner(dinnerNeedP, dinnerNeedC, dinnerNeedF, excludeFromDinner);
 
     // Assign to slots — indices based on SLOT_DEFS order
     const nonHydro  = slots.filter(s=>!s.isHydrationOnly);
@@ -636,7 +636,7 @@ function updateDailySummary(meals) {
     ].forEach(({id,dId,val,tgt,unit})=>{
         document.getElementById(id).textContent = val+unit;
         const diff=r1(val-tgt), el=document.getElementById(dId);
-        if(Math.abs(diff)<=8){el.textContent="✓ On target";el.className="delta on-target";}
+        if(Math.abs(diff)<=4){el.textContent="✓ On target";el.className="delta on-target";}
         else if(diff>0){el.textContent=`+${diff}${unit} over`;el.className="delta over";}
         else{el.textContent=`${diff}${unit} under`;el.className="delta under";}
     });
