@@ -1,28 +1,27 @@
-// Persist the user's fixed meals on-device (AsyncStorage). This is the per-user
-// seam: when auth lands, swap these two functions for a Supabase table keyed by
-// user id — nothing else in the app changes.
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// Persist the user's fixed meals in the per-user `fixed_meals` Supabase table
+// (RLS scopes rows to the signed-in user). Falls back to the defaults when the
+// account has no row yet.
+import { supabase } from './supabase';
 import { DEFAULT_FIXED_MEALS, type FixedMeals } from '../data/fixedMeals';
 
-const KEY = 'fixed_meals_v1';
-
 export async function loadFixedMeals(): Promise<FixedMeals> {
-  try {
-    const raw = await AsyncStorage.getItem(KEY);
-    if (!raw) return DEFAULT_FIXED_MEALS;
-    const parsed = JSON.parse(raw) as Partial<FixedMeals>;
-    // Merge with defaults so a missing field never breaks the solver.
-    return {
-      breakfast: parsed.breakfast ?? DEFAULT_FIXED_MEALS.breakfast,
-      snack1: parsed.snack1 ?? DEFAULT_FIXED_MEALS.snack1,
-      preworkoutOptions: parsed.preworkoutOptions ?? DEFAULT_FIXED_MEALS.preworkoutOptions,
-      snack2Options: parsed.snack2Options ?? DEFAULT_FIXED_MEALS.snack2Options,
-    };
-  } catch {
-    return DEFAULT_FIXED_MEALS;
-  }
+  const { data, error } = await supabase.from('fixed_meals').select('data').maybeSingle();
+  if (error || !data?.data) return DEFAULT_FIXED_MEALS;
+  const parsed = data.data as Partial<FixedMeals>;
+  // Merge with defaults so a missing field never breaks the solver.
+  return {
+    breakfast: parsed.breakfast ?? DEFAULT_FIXED_MEALS.breakfast,
+    snack1: parsed.snack1 ?? DEFAULT_FIXED_MEALS.snack1,
+    preworkoutOptions: parsed.preworkoutOptions ?? DEFAULT_FIXED_MEALS.preworkoutOptions,
+    snack2Options: parsed.snack2Options ?? DEFAULT_FIXED_MEALS.snack2Options,
+  };
 }
 
 export async function saveFixedMeals(meals: FixedMeals): Promise<void> {
-  await AsyncStorage.setItem(KEY, JSON.stringify(meals));
+  const { data: u } = await supabase.auth.getUser();
+  const userId = u.user?.id;
+  if (!userId) return; // not signed in
+  await supabase
+    .from('fixed_meals')
+    .upsert({ user_id: userId, data: meals, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
 }

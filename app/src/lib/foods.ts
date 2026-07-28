@@ -1,6 +1,14 @@
 // CRUD helpers for the Supabase `foods` table.
 import { supabase } from './supabase';
+import { STARTER_FOODS } from '../data/starterFoods';
 import type { FoodRow } from '../types';
+
+// Seed a new account with its own copy of the starter foods (user_id defaults to
+// auth.uid() on insert). Called on first login when the account has no foods.
+export async function seedStarterFoods(): Promise<void> {
+  const { error } = await supabase.from('foods').insert(STARTER_FOODS);
+  if (error) throw error;
+}
 
 export async function fetchFoods(): Promise<FoodRow[]> {
   const { data, error } = await supabase

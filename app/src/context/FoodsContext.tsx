@@ -1,5 +1,5 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { fetchFoods } from '../lib/foods';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { fetchFoods, seedStarterFoods } from '../lib/foods';
 import type { FoodRow } from '../types';
 
 interface FoodsState {
@@ -15,12 +15,20 @@ export function FoodsProvider({ children }: { children: React.ReactNode }) {
   const [foods, setFoods] = useState<FoodRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const seededRef = useRef(false);
 
   const reload = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setFoods(await fetchFoods());
+      let data = await fetchFoods();
+      // First login: seed this account with its own copy of the starter foods.
+      if (data.length === 0 && !seededRef.current) {
+        seededRef.current = true;
+        await seedStarterFoods();
+        data = await fetchFoods();
+      }
+      setFoods(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load foods');
     } finally {

@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { theme } from '../theme';
 import { useFoods } from '../context/FoodsContext';
 import { useFixedMeals } from '../context/FixedMealsContext';
+import { useAuth } from '../context/AuthContext';
 import FoodPickerModal from '../components/FoodPickerModal';
 import type { FixedMeals } from '../data/fixedMeals';
 import type { FoodRow } from '../types';
@@ -28,6 +29,7 @@ const macroLine = (names: string[], foods: FoodRow[]) => {
 export default function FixedMealsScreen() {
   const { foods } = useFoods();
   const { fixedMeals, update, resetToDefault } = useFixedMeals();
+  const { session, signOut } = useAuth();
   const [picker, setPicker] = useState<PickerTarget>(null);
 
   const set = (next: FixedMeals) => update(next);
@@ -129,6 +131,20 @@ export default function FixedMealsScreen() {
         <Text style={styles.resetText}>Reset to defaults</Text>
       </Pressable>
       <Text style={styles.hint}>Tap a food chip to remove it · changes save automatically</Text>
+
+      <View style={styles.account}>
+        <Text style={styles.accountEmail}>{session?.user?.email ?? 'Signed in'}</Text>
+        <Pressable
+          onPress={() =>
+            Alert.alert('Sign out', 'Sign out of your account?', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Sign out', style: 'destructive', onPress: () => void signOut() },
+            ])
+          }
+        >
+          <Text style={styles.signOut}>Sign out</Text>
+        </Pressable>
+      </View>
       <View style={{ height: 24 }} />
 
       <FoodPickerModal visible={picker !== null} onPick={onPick} onClose={() => setPicker(null)} />
@@ -238,4 +254,16 @@ const styles = StyleSheet.create({
   resetBtn: { marginTop: 6, alignSelf: 'center', paddingVertical: 8, paddingHorizontal: 16 },
   resetText: { color: theme.textDim, fontWeight: '600' },
   hint: { color: theme.textFaint, fontSize: 11, textAlign: 'center', marginTop: 4 },
+  account: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 18,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: theme.border,
+  },
+  accountEmail: { color: theme.textDim, fontSize: 13 },
+  signOut: { color: theme.red, fontSize: 14, fontWeight: '700' },
 });
+

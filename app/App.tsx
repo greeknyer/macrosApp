@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { theme } from './src/theme';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { FoodsProvider } from './src/context/FoodsContext';
 import { FixedMealsProvider } from './src/context/FixedMealsContext';
+import AuthScreen from './src/screens/AuthScreen';
 import PlanScreen from './src/screens/PlanScreen';
 import FoodsScreen from './src/screens/FoodsScreen';
 import ScannerScreen from './src/screens/ScannerScreen';
@@ -17,14 +19,11 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'scan', label: 'Scan', icon: '📷' },
 ];
 
-export default function App() {
+function MainApp() {
   const [tab, setTab] = useState<Tab>('plan');
-
   return (
     <FoodsProvider>
       <FixedMealsProvider>
-      <SafeAreaView style={styles.root}>
-        <StatusBar barStyle="light-content" backgroundColor={theme.bg} />
         <View style={styles.body}>
           {tab === 'plan' && <PlanScreen />}
           {tab === 'foods' && <FoodsScreen />}
@@ -39,14 +38,38 @@ export default function App() {
             </Pressable>
           ))}
         </View>
-      </SafeAreaView>
       </FixedMealsProvider>
     </FoodsProvider>
   );
 }
 
+// Chooses the auth screen or the app based on the session.
+function Root() {
+  const { session, loading } = useAuth();
+  if (loading) {
+    return (
+      <View style={styles.splash}>
+        <ActivityIndicator color={theme.accentBlue} size="large" />
+      </View>
+    );
+  }
+  return session ? <MainApp /> : <AuthScreen />;
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <SafeAreaView style={styles.root}>
+        <StatusBar barStyle="light-content" backgroundColor={theme.bg} />
+        <Root />
+      </SafeAreaView>
+    </AuthProvider>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.bg },
+  splash: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.bg },
   body: { flex: 1 },
   tabBar: {
     flexDirection: 'row',
