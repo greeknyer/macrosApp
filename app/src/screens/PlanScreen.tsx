@@ -9,8 +9,9 @@ import {
 } from 'react-native';
 import { theme } from '../theme';
 import { useFoods } from '../context/FoodsContext';
-import { useFixedMeals } from '../context/FixedMealsContext';
-import { DAY_ORDER, DEFAULT_TARGETS, SCHEDULES } from '../data/templates';
+import { useSettings } from '../context/SettingsContext';
+import { targetsForSchedule } from '../data/settings';
+import { DAY_ORDER, SCHEDULES } from '../data/templates';
 import { calcKcal, generateMealPlan } from '../solver/solver';
 import MacroSummary from '../components/MacroSummary';
 import MealCard from '../components/MealCard';
@@ -25,10 +26,9 @@ const macroLabel: Record<keyof Macros, string> = { p: 'Protein', c: 'Carbs', f: 
 
 export default function PlanScreen() {
   const { foods, loading, error, reload } = useFoods();
-  const { fixedMeals } = useFixedMeals();
+  const { settings } = useSettings();
   const [day, setDay] = useState<DayKey>(DAY_ORDER[TODAY_INDEX()]);
   const [plan, setPlan] = useState<PlanResult | null>(null);
-  const targets = DEFAULT_TARGETS;
 
   // Rolling memory of recently-used proteins/carbs so successive randomizes
   // rotate through the roster instead of repeating.
@@ -42,7 +42,8 @@ export default function PlanScreen() {
   const FAT_WINDOW = 3;
 
   const build = () => {
-    const result = generateMealPlan(foods, day, targets, recent.current, fixedMeals);
+    const targets = targetsForSchedule(SCHEDULES[day].type, settings.targets);
+    const result = generateMealPlan(foods, day, targets, recent.current, settings.fixedMeals);
     recent.current = {
       proteins: [...result.usedProteins, ...recent.current.proteins].slice(0, PROTEIN_WINDOW),
       carbs: [...result.usedCarbs, ...recent.current.carbs].slice(0, CARB_WINDOW),
@@ -51,11 +52,11 @@ export default function PlanScreen() {
     setPlan(result);
   };
 
-  // Auto-generate a plan when foods load, the day changes, or fixed meals change.
+  // Regenerate when foods load, the day changes, or settings (targets/meals) change.
   useEffect(() => {
     if (foods.length) build();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [foods, day, fixedMeals]);
+  }, [foods, day, settings]);
 
   const randomize = () => {
     if (foods.length) build();
@@ -108,7 +109,12 @@ export default function PlanScreen() {
 
       {plan ? (
         <>
-          <MacroSummary totals={plan.totals} targets={targets} kcal={calcKcal(plan.totals)} />
+          <MacroSummary
+            totals={plan.totals}
+            targets={plan.targets}
+            kcal={calcKcal(plan.totals)}
+            kcalTarget={calcKcal(plan.targets)}
+          />
 
           {plan.withinTolerance ? (
             <View style={[styles.toleranceBar, styles.onTarget]}>

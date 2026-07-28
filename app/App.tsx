@@ -3,19 +3,19 @@ import { ActivityIndicator, Pressable, SafeAreaView, StatusBar, StyleSheet, Text
 import { theme } from './src/theme';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { FoodsProvider } from './src/context/FoodsContext';
-import { FixedMealsProvider } from './src/context/FixedMealsContext';
+import { SettingsProvider } from './src/context/SettingsContext';
 import AuthScreen from './src/screens/AuthScreen';
 import PlanScreen from './src/screens/PlanScreen';
 import FoodsScreen from './src/screens/FoodsScreen';
 import ScannerScreen from './src/screens/ScannerScreen';
-import FixedMealsScreen from './src/screens/FixedMealsScreen';
+import SetupScreen from './src/screens/FixedMealsScreen';
 
-type Tab = 'plan' | 'foods' | 'fixed' | 'scan';
+type Tab = 'plan' | 'foods' | 'setup' | 'scan';
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'plan', label: 'Plan', icon: '🍽️' },
   { key: 'foods', label: 'Foods', icon: '📋' },
-  { key: 'fixed', label: 'Fixed', icon: '🔒' },
+  { key: 'setup', label: 'Setup', icon: '⚙️' },
   { key: 'scan', label: 'Scan', icon: '📷' },
 ];
 
@@ -23,11 +23,11 @@ function MainApp() {
   const [tab, setTab] = useState<Tab>('plan');
   return (
     <FoodsProvider>
-      <FixedMealsProvider>
+      <SettingsProvider>
         <View style={styles.body}>
           {tab === 'plan' && <PlanScreen />}
           {tab === 'foods' && <FoodsScreen />}
-          {tab === 'fixed' && <FixedMealsScreen />}
+          {tab === 'setup' && <SetupScreen />}
           {tab === 'scan' && <ScannerScreen />}
         </View>
         <View style={styles.tabBar}>
@@ -38,7 +38,7 @@ function MainApp() {
             </Pressable>
           ))}
         </View>
-      </FixedMealsProvider>
+      </SettingsProvider>
     </FoodsProvider>
   );
 }

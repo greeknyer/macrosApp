@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { theme } from '../theme';
 import { useFoods } from '../context/FoodsContext';
-import { useFixedMeals } from '../context/FixedMealsContext';
+import { useSettings } from '../context/SettingsContext';
 import { useAuth } from '../context/AuthContext';
 import FoodPickerModal from '../components/FoodPickerModal';
+import { calcKcal } from '../solver/solver';
 import type { FixedMeals } from '../data/fixedMeals';
-import type { FoodRow } from '../types';
+import type { FoodRow, Macros } from '../types';
 
 type ListKey = 'breakfast' | 'snack1';
 type OptionKey = 'preworkoutOptions' | 'snack2Options';
@@ -28,11 +29,21 @@ const macroLine = (names: string[], foods: FoodRow[]) => {
 
 export default function FixedMealsScreen() {
   const { foods } = useFoods();
-  const { fixedMeals, update, resetToDefault } = useFixedMeals();
+  const { settings, updateFixedMeals, updateTargets, resetFixedMeals } = useSettings();
   const { session, signOut } = useAuth();
   const [picker, setPicker] = useState<PickerTarget>(null);
 
-  const set = (next: FixedMeals) => update(next);
+  const fixedMeals = settings.fixedMeals;
+  const set = (next: FixedMeals) => updateFixedMeals(next);
+  const resetToDefault = resetFixedMeals;
+
+  const setTarget = (profile: 'training' | 'rest', macro: keyof Macros, text: string) => {
+    const n = parseFloat(text);
+    updateTargets({
+      ...settings.targets,
+      [profile]: { ...settings.targets[profile], [macro]: isNaN(n) ? 0 : n },
+    });
+  };
 
   const addToList = (key: ListKey, name: string) =>
     set({ ...fixedMeals, [key]: [...fixedMeals[key], name] });
@@ -74,10 +85,44 @@ export default function FixedMealsScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.h1}>Fixed Meals</Text>
+      <Text style={styles.h1}>Setup</Text>
       <Text style={styles.subtitle}>
-        Your locked breakfast, snacks & pre-workout. Lunch and dinner are generated to hit your macros around these.
+        Your daily macro targets and locked meals. Lunch and dinner are generated to hit the day’s targets around these.
       </Text>
+
+      {/* Daily targets */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Daily Targets</Text>
+        <Text style={styles.sectionHint}>Training days use one profile; the rest day uses another.</Text>
+        {(['training', 'rest'] as const).map((profile) => {
+          const t = settings.targets[profile];
+          return (
+            <View key={profile} style={styles.optionCard}>
+              <View style={styles.optionHeader}>
+                <Text style={styles.optionLabel}>{profile === 'training' ? '🏋️ Training days' : '😴 Rest day'}</Text>
+                <Text style={styles.sectionMeta}>{calcKcal(t)} kcal</Text>
+              </View>
+              <View style={styles.targetRow}>
+                {(['p', 'c', 'f'] as const).map((m) => (
+                  <View key={m} style={styles.targetCol}>
+                    <Text style={styles.targetLabel}>{m === 'p' ? 'Protein' : m === 'c' ? 'Carbs' : 'Fat'}</Text>
+                    <View style={styles.targetInputWrap}>
+                      <TextInput
+                        style={styles.targetInput}
+                        keyboardType="number-pad"
+                        value={String(t[m])}
+                        onChangeText={(txt) => setTarget(profile, m, txt)}
+                        selectTextOnFocus
+                      />
+                      <Text style={styles.targetUnit}>g</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          );
+        })}
+      </View>
 
       {/* Breakfast */}
       <View style={styles.section}>
@@ -265,5 +310,12 @@ const styles = StyleSheet.create({
   },
   accountEmail: { color: theme.textDim, fontSize: 13 },
   signOut: { color: theme.red, fontSize: 14, fontWeight: '700' },
+  targetRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  targetCol: { flex: 1 },
+  targetLabel: { color: theme.textDim, fontSize: 11, fontWeight: '600', marginBottom: 4 },
+  targetInputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.cardBg, borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 8 },
+  targetInput: { flex: 1, color: theme.text, paddingVertical: 8, fontSize: 15, fontWeight: '700' },
+  targetUnit: { color: theme.textFaint, fontSize: 12 },
 });
+
 
