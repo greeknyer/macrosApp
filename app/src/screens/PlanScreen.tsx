@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { theme } from '../theme';
 import { useFoods } from '../context/FoodsContext';
+import { useFixedMeals } from '../context/FixedMealsContext';
 import { DAY_ORDER, DEFAULT_TARGETS, SCHEDULES } from '../data/templates';
 import { calcKcal, generateMealPlan } from '../solver/solver';
 import MacroSummary from '../components/MacroSummary';
@@ -24,6 +25,7 @@ const macroLabel: Record<keyof Macros, string> = { p: 'Protein', c: 'Carbs', f: 
 
 export default function PlanScreen() {
   const { foods, loading, error, reload } = useFoods();
+  const { fixedMeals } = useFixedMeals();
   const [day, setDay] = useState<DayKey>(DAY_ORDER[TODAY_INDEX()]);
   const [plan, setPlan] = useState<PlanResult | null>(null);
   const targets = DEFAULT_TARGETS;
@@ -40,7 +42,7 @@ export default function PlanScreen() {
   const FAT_WINDOW = 3;
 
   const build = () => {
-    const result = generateMealPlan(foods, day, targets, recent.current);
+    const result = generateMealPlan(foods, day, targets, recent.current, fixedMeals);
     recent.current = {
       proteins: [...result.usedProteins, ...recent.current.proteins].slice(0, PROTEIN_WINDOW),
       carbs: [...result.usedCarbs, ...recent.current.carbs].slice(0, CARB_WINDOW),
@@ -49,11 +51,11 @@ export default function PlanScreen() {
     setPlan(result);
   };
 
-  // Auto-generate a plan when foods load or the selected day changes.
+  // Auto-generate a plan when foods load, the day changes, or fixed meals change.
   useEffect(() => {
     if (foods.length) build();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [foods, day]);
+  }, [foods, day, fixedMeals]);
 
   const randomize = () => {
     if (foods.length) build();

@@ -2,15 +2,18 @@ import React, { useState } from 'react';
 import { Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { theme } from './src/theme';
 import { FoodsProvider } from './src/context/FoodsContext';
+import { FixedMealsProvider } from './src/context/FixedMealsContext';
 import PlanScreen from './src/screens/PlanScreen';
 import FoodsScreen from './src/screens/FoodsScreen';
 import ScannerScreen from './src/screens/ScannerScreen';
+import FixedMealsScreen from './src/screens/FixedMealsScreen';
 
-type Tab = 'plan' | 'foods' | 'scan';
+type Tab = 'plan' | 'foods' | 'fixed' | 'scan';
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'plan', label: 'Plan', icon: '🍽️' },
   { key: 'foods', label: 'Foods', icon: '📋' },
+  { key: 'fixed', label: 'Fixed', icon: '🔒' },
   { key: 'scan', label: 'Scan', icon: '📷' },
 ];
 
@@ -19,11 +22,13 @@ export default function App() {
 
   return (
     <FoodsProvider>
+      <FixedMealsProvider>
       <SafeAreaView style={styles.root}>
         <StatusBar barStyle="light-content" backgroundColor={theme.bg} />
         <View style={styles.body}>
           {tab === 'plan' && <PlanScreen />}
           {tab === 'foods' && <FoodsScreen />}
+          {tab === 'fixed' && <FixedMealsScreen />}
           {tab === 'scan' && <ScannerScreen />}
         </View>
         <View style={styles.tabBar}>
@@ -35,6 +40,7 @@ export default function App() {
           ))}
         </View>
       </SafeAreaView>
+      </FixedMealsProvider>
     </FoodsProvider>
   );
 }
