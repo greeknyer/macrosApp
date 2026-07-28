@@ -29,6 +29,7 @@ export default function PlanScreen() {
   const { settings } = useSettings();
   const [day, setDay] = useState<DayKey>(DAY_ORDER[TODAY_INDEX()]);
   const [plan, setPlan] = useState<PlanResult | null>(null);
+  const [randomizing, setRandomizing] = useState(false);
 
   // Rolling memory of recently-used proteins/carbs so successive randomizes
   // rotate through the roster instead of repeating.
@@ -59,8 +60,16 @@ export default function PlanScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [foods, day, settings]);
 
+  // Solving is instant, so show a brief spinner for feedback (you can't tell the
+  // plan changed without it). Clear the current plan so the change is obvious.
   const randomize = () => {
-    if (foods.length) build();
+    if (!foods.length || randomizing) return;
+    setRandomizing(true);
+    setPlan(null);
+    setTimeout(() => {
+      build();
+      setRandomizing(false);
+    }, 650);
   };
 
   if (loading) {
@@ -140,13 +149,29 @@ export default function PlanScreen() {
         </>
       ) : null}
 
-      <Pressable style={styles.randomizeBtn} onPress={randomize}>
-        <Text style={styles.randomizeText}>🎲 Randomize Meal Plan</Text>
+      <Pressable
+        style={[styles.randomizeBtn, randomizing && styles.randomizeBtnBusy]}
+        onPress={randomize}
+        disabled={randomizing}
+      >
+        {randomizing ? (
+          <View style={styles.randomizeBusy}>
+            <ActivityIndicator color="#fff" size="small" />
+            <Text style={[styles.randomizeText, styles.randomizeBusyText]}>Building your plan…</Text>
+          </View>
+        ) : (
+          <Text style={styles.randomizeText}>🎲 Randomize Meal Plan</Text>
+        )}
       </Pressable>
 
-      {plan?.meals.map((meal, i) => (
-        <MealCard key={`${meal.title}-${i}`} meal={meal} />
-      ))}
+      {randomizing ? (
+        <View style={styles.placeholder}>
+          <ActivityIndicator color={theme.accentBlue} />
+          <Text style={styles.placeholderText}>Balancing your macros…</Text>
+        </View>
+      ) : (
+        plan?.meals.map((meal, i) => <MealCard key={`${meal.title}-${i}`} meal={meal} />)
+      )}
 
       <View style={{ height: 24 }} />
     </ScrollView>
@@ -196,6 +221,11 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   randomizeText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  randomizeBtnBusy: { opacity: 0.85 },
+  randomizeBusy: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  randomizeBusyText: { marginLeft: 10 },
+  placeholder: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48 },
+  placeholderText: { color: theme.textDim, fontSize: 13, marginTop: 12 },
   retryBtn: {
     marginTop: 16,
     backgroundColor: theme.blue,
