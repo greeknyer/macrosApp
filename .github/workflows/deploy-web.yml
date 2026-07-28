@@ -1,0 +1,64 @@
+name: Deploy web app to GitHub Pages
+
+# Builds the Expo web export (app/) and publishes it to GitHub Pages on every
+# push to main. Once this runs, Pages serves the new app — not the old root
+# index.html. Requires: repo Settings → Pages → Source = "GitHub Actions".
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one deploy at a time; let a newer push cancel an in-progress one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    env:
+      # Public anon key — safe to ship (RLS enforces access), same value that
+      # ends up in the client bundle either way.
+      EXPO_PUBLIC_SUPABASE_URL: https://epajylwwiulivycpppja.supabase.co
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVwYWp5bHd3aXVsaXZ5Y3BwcGphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ4OTg2NjcsImV4cCI6MjEwMDQ3NDY2N30.DxqorwcW_24uUuhGY7FE2odxdR4-xq4hTRF4tJhmvC4
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Export web build
+        run: npx expo export --platform web
+
+      # Serve _expo/ (leading underscore) verbatim — belt-and-suspenders vs Jekyll.
+      - name: Disable Jekyll
+        run: touch dist/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: app/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
