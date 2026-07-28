@@ -6,14 +6,16 @@ import { FoodsProvider } from './src/context/FoodsContext';
 import { SettingsProvider } from './src/context/SettingsContext';
 import AuthScreen from './src/screens/AuthScreen';
 import PlanScreen from './src/screens/PlanScreen';
+import GroceryScreen from './src/screens/GroceryScreen';
 import FoodsScreen from './src/screens/FoodsScreen';
 import ScannerScreen from './src/screens/ScannerScreen';
 import SetupScreen from './src/screens/FixedMealsScreen';
 
-type Tab = 'plan' | 'foods' | 'setup' | 'scan';
+type Tab = 'plan' | 'grocery' | 'foods' | 'setup' | 'scan';
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'plan', label: 'Plan', icon: '🍽️' },
+  { key: 'grocery', label: 'Grocery', icon: '🛒' },
   { key: 'foods', label: 'Foods', icon: '📋' },
   { key: 'setup', label: 'Setup', icon: '⚙️' },
   { key: 'scan', label: 'Scan', icon: '📷' },
@@ -26,6 +28,7 @@ function MainApp() {
       <SettingsProvider>
         <View style={styles.body}>
           {tab === 'plan' && <PlanScreen />}
+          {tab === 'grocery' && <GroceryScreen />}
           {tab === 'foods' && <FoodsScreen />}
           {tab === 'setup' && <SetupScreen />}
           {tab === 'scan' && <ScannerScreen />}
