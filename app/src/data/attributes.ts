@@ -76,8 +76,12 @@ export type FatType =
   | 'cream_cheese'
   | 'avocado'
   | 'dressing';
+// Vegetables split by culinary role: a leafy SALAD base (plate side / salad) vs
+// an AROMATIC (peppers, onions) that belongs cooked INTO a dish like fajitas —
+// never standing in for a salad on a plate.
+export type VegForm = 'salad' | 'aromatic';
 export type Temp = 'cold' | 'hot' | 'any';
-export type FoodForm = ProteinForm | CarbForm;
+export type FoodForm = ProteinForm | CarbForm | VegForm;
 
 // Which fats suit which dish STYLE (culinary accompaniment logic). A fat only
 // appears in a dish whose style includes its type — e.g. cashews go on salads
@@ -157,9 +161,12 @@ function infer(food: FoodRow): FoodAttributes {
     return protein('grilled', 'hot', false); // default cooked protein
   }
 
-  // Vegetables
-  if (has(n, 'salad', 'pepper', 'cucumber', 'tomato', 'greens', 'spinach', 'lettuce'))
-    return attr('veg', null, { temp: 'any' });
+  // Vegetables — aromatics (pepper/onion) are a cooking veg for fajita-style
+  // bowls; everything else leafy is a salad base. Peppers checked first so
+  // "Mini peppers" never fills a salad slot.
+  if (has(n, 'pepper', 'onion', 'scallion', 'fajita')) return attr('veg', 'aromatic', { temp: 'any' });
+  if (has(n, 'salad', 'cucumber', 'tomato', 'greens', 'spinach', 'lettuce', 'slaw', 'veggie', 'vegetable', 'broccoli', 'green bean', 'asparagus'))
+    return attr('veg', 'salad', { temp: 'any' });
 
   // Fruit
   if (has(n, 'banana', 'blueberr', 'berry', 'apple', 'fruit'))

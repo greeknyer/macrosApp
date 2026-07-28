@@ -55,6 +55,11 @@ const grainish = (a: FoodAttributes) => isCarb(a) && ['grain', 'potato', 'legume
 const breadOrPotato = (a: FoodAttributes) => isCarb(a) && ['bread', 'bagel', 'potato'].includes(a.form ?? '');
 
 const veg = (a: FoodAttributes) => a.role === 'veg';
+// A salad base (leafy plate side). Default: any veg that isn't an aromatic, so a
+// user's new veg slots into salads unless it's clearly a pepper/onion.
+const saladVeg = (a: FoodAttributes) => a.role === 'veg' && a.form !== 'aromatic';
+// Peppers/onions — the cooking veg for a fajita bowl, not a plate salad.
+const aromaticVeg = (a: FoodAttributes) => a.role === 'veg' && a.form === 'aromatic';
 
 const isFat = (a: FoodAttributes) => a.role === 'fat';
 const slicedCheese = (a: FoodAttributes) => isFat(a) && a.fatType === 'cheese_sliced';
@@ -92,7 +97,7 @@ export const LUNCH_DISHES: Dish[] = [
     name: 'Salad Plate',
     weight: 2,
     slots: [
-      { role: 'veg', match: veg, scalable: false },
+      { role: 'veg', match: saladVeg, scalable: false },
       { role: 'protein', match: mealProtein, scalable: true },
       { role: 'fat', match: saladFat, scalable: true, optional: true },
     ],
@@ -128,7 +133,7 @@ export const DINNER_DISHES: Dish[] = [
     slots: [
       { role: 'protein', match: hotProtein, scalable: true },
       { role: 'carb', match: grainish, scalable: true },
-      { role: 'veg', match: veg, scalable: false },
+      { role: 'veg', match: saladVeg, scalable: false },
     ],
   },
   {
@@ -137,7 +142,7 @@ export const DINNER_DISHES: Dish[] = [
     addFats: 2,
     slots: [
       { role: 'protein', match: hotProtein, scalable: true },
-      { role: 'veg', match: veg, scalable: false },
+      { role: 'veg', match: saladVeg, scalable: false },
     ],
   },
   {
@@ -147,18 +152,18 @@ export const DINNER_DISHES: Dish[] = [
     slots: [
       { role: 'protein', match: pattyProtein, scalable: true },
       { role: 'carb', match: bun, scalable: true, maxServings: 2 },
-      { role: 'veg', match: veg, scalable: false },
+      { role: 'veg', match: saladVeg, scalable: false },
       { role: 'condiment', match: condiment, scalable: false, optional: true },
     ],
   },
   {
-    name: 'Chicken Fajita Bowl', // over rice/quinoa, melted (shredded) cheese
+    name: 'Chicken Fajita Bowl', // peppers cooked in, over rice/quinoa
     weight: 2,
     addFats: 2,
     slots: [
       { role: 'protein', match: grillRoastProtein, scalable: true },
       { role: 'carb', match: grainish, scalable: true },
-      { role: 'veg', match: veg, scalable: false },
+      { role: 'veg', match: aromaticVeg, scalable: false },
     ],
   },
 ];
