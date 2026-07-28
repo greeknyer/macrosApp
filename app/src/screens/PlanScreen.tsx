@@ -11,7 +11,7 @@ import { theme } from '../theme';
 import { useFoods } from '../context/FoodsContext';
 import { useSettings } from '../context/SettingsContext';
 import { targetsForSchedule } from '../data/settings';
-import { DAY_ORDER, SCHEDULES } from '../data/templates';
+import { DAY_ORDER, SCHEDULE_META } from '../data/templates';
 import { calcKcal, generateMealPlan } from '../solver/solver';
 import MacroSummary from '../components/MacroSummary';
 import MealCard from '../components/MealCard';
@@ -42,8 +42,9 @@ export default function PlanScreen() {
   const FAT_WINDOW = 3;
 
   const build = () => {
-    const targets = targetsForSchedule(SCHEDULES[day].type, settings.targets);
-    const result = generateMealPlan(foods, day, targets, recent.current, settings.fixedMeals);
+    const schedType = settings.schedule[day];
+    const targets = targetsForSchedule(schedType, settings.targets);
+    const result = generateMealPlan(foods, day, targets, recent.current, settings.fixedMeals, schedType);
     recent.current = {
       proteins: [...result.usedProteins, ...recent.current.proteins].slice(0, PROTEIN_WINDOW),
       carbs: [...result.usedCarbs, ...recent.current.carbs].slice(0, CARB_WINDOW),
@@ -104,7 +105,7 @@ export default function PlanScreen() {
       </View>
 
       <View style={styles.badge}>
-        <Text style={styles.badgeText}>{SCHEDULES[day].desc}</Text>
+        <Text style={styles.badgeText}>{SCHEDULE_META[settings.schedule[day]].desc}</Text>
       </View>
 
       {plan ? (

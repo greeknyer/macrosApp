@@ -6,6 +6,7 @@ import { useSettings } from '../context/SettingsContext';
 import { useAuth } from '../context/AuthContext';
 import FoodPickerModal from '../components/FoodPickerModal';
 import { calcKcal } from '../solver/solver';
+import { DAY_ORDER, SCHEDULE_META, SCHEDULE_TYPES } from '../data/templates';
 import type { FixedMeals } from '../data/fixedMeals';
 import type { FoodRow, Macros } from '../types';
 
@@ -29,7 +30,7 @@ const macroLine = (names: string[], foods: FoodRow[]) => {
 
 export default function FixedMealsScreen() {
   const { foods } = useFoods();
-  const { settings, updateFixedMeals, updateTargets, resetFixedMeals } = useSettings();
+  const { settings, updateFixedMeals, updateTargets, updateSchedule, resetFixedMeals } = useSettings();
   const { session, signOut } = useAuth();
   const [picker, setPicker] = useState<PickerTarget>(null);
 
@@ -122,6 +123,33 @@ export default function FixedMealsScreen() {
             </View>
           );
         })}
+      </View>
+
+      {/* Weekly schedule */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Weekly Schedule</Text>
+        <Text style={styles.sectionHint}>Set each day’s workout — it sets the meal timing and target profile.</Text>
+        {DAY_ORDER.map((d) => (
+          <View key={d} style={styles.schedRow}>
+            <Text style={styles.schedDay}>{d}</Text>
+            <View style={styles.schedChips}>
+              {SCHEDULE_TYPES.map((st) => {
+                const active = settings.schedule[d] === st;
+                return (
+                  <Pressable
+                    key={st}
+                    style={[styles.schedChip, active && styles.chipActive]}
+                    onPress={() => updateSchedule({ ...settings.schedule, [d]: st })}
+                  >
+                    <Text style={[styles.schedChipText, active && styles.chipTextActive]}>
+                      {SCHEDULE_META[st].label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        ))}
       </View>
 
       {/* Breakfast */}
@@ -316,6 +344,20 @@ const styles = StyleSheet.create({
   targetInputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.cardBg, borderWidth: 1, borderColor: theme.border, borderRadius: 8, paddingHorizontal: 8 },
   targetInput: { flex: 1, color: theme.text, paddingVertical: 8, fontSize: 15, fontWeight: '700' },
   targetUnit: { color: theme.textFaint, fontSize: 12 },
+  schedRow: { marginTop: 10 },
+  schedDay: { color: theme.textDim, fontSize: 12, fontWeight: '700', marginBottom: 4 },
+  schedChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  schedChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: theme.cardBgAlt,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  schedChipText: { color: theme.textDim, fontSize: 11, fontWeight: '600' },
+  chipActive: { backgroundColor: theme.blue, borderColor: theme.accentBlue },
+  chipTextActive: { color: '#fff', fontWeight: '700' },
 });
 
 

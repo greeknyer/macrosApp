@@ -247,6 +247,22 @@ export const SCHEDULES: Record<DayKey, ScheduleInfo> = {
   Sun: { type: 'am_late', desc: '🏋️‍♂️ Training: 9:30 AM Trainer Session' },
 };
 
+// Default day → workout type; users override this per day in Setup.
+export const DEFAULT_SCHEDULE: Record<DayKey, ScheduleType> = {
+  Mon: 'pm', Tue: 'pm', Wed: 'am_early', Thu: 'am_early', Fri: 'am_early', Sat: 'rest', Sun: 'am_late',
+};
+
+export const SCHEDULE_TYPES: ScheduleType[] = ['pm', 'am_early', 'am_late', 'rest'];
+
+// Display label + Plan-screen description for each workout type. The meal-slot
+// timing (SLOT_DEFS) and target profile (rest vs training) follow from the type.
+export const SCHEDULE_META: Record<ScheduleType, { label: string; desc: string }> = {
+  pm: { label: 'PM Workout', desc: '🏋️ Afternoon / evening training' },
+  am_early: { label: 'AM Early', desc: '⚡ Early-morning workout' },
+  am_late: { label: 'AM Late', desc: '🏋️ Late-morning training' },
+  rest: { label: 'Rest', desc: '😴 Rest day' },
+};
+
 export const DAY_ORDER: DayKey[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export interface SlotDef {

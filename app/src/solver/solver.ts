@@ -322,9 +322,10 @@ export function generateMealPlan(
   targets: Macros,
   avoid: AvoidMemory = { proteins: [], carbs: [], fats: [] },
   fixed: FixedMeals = DEFAULT_FIXED_MEALS,
+  scheduleType?: ScheduleType,
 ): PlanResult {
   const h = makeHelpers(foodDB, avoid);
-  const schedType: ScheduleType = SCHEDULES[dayKey].type;
+  const schedType: ScheduleType = scheduleType ?? SCHEDULES[dayKey].type;
   const slots = SLOT_DEFS[schedType];
 
   // Fixed meals from the user's config. Rice cake can't be in both pre-workout

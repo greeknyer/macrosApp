@@ -1,9 +1,9 @@
 // Load/save the per-user settings (fixed meals + daily targets) in the
 // `fixed_meals` table's jsonb `data` column, RLS-scoped to the signed-in user.
 import { supabase } from './supabase';
-import { DEFAULT_SETTINGS, type UserSettings } from '../data/settings';
+import { DEFAULT_SETTINGS, DEFAULT_DAILY_TARGETS, type UserSettings } from '../data/settings';
 import { DEFAULT_FIXED_MEALS } from '../data/fixedMeals';
-import { DEFAULT_DAILY_TARGETS } from '../data/settings';
+import { DEFAULT_SCHEDULE } from '../data/templates';
 
 export async function loadSettings(): Promise<UserSettings> {
   const { data, error } = await supabase.from('fixed_meals').select('data').maybeSingle();
@@ -24,6 +24,7 @@ export async function loadSettings(): Promise<UserSettings> {
       training: targets.training ?? DEFAULT_DAILY_TARGETS.training,
       rest: targets.rest ?? DEFAULT_DAILY_TARGETS.rest,
     },
+    schedule: { ...DEFAULT_SCHEDULE, ...(parsed.schedule ?? {}) },
   };
 }
 

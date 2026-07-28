@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { DEFAULT_SETTINGS, type DailyTargets, type UserSettings } from '../data/settings';
+import { DEFAULT_SETTINGS, type DailyTargets, type UserSettings, type WeeklySchedule } from '../data/settings';
 import { DEFAULT_FIXED_MEALS, type FixedMeals } from '../data/fixedMeals';
 import { loadSettings, saveSettings } from '../lib/settingsStore';
 
@@ -8,6 +8,7 @@ interface SettingsState {
   loading: boolean;
   updateFixedMeals: (next: FixedMeals) => void;
   updateTargets: (next: DailyTargets) => void;
+  updateSchedule: (next: WeeklySchedule) => void;
   resetFixedMeals: () => void;
 }
 
@@ -36,14 +37,18 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     (next: DailyTargets) => persist({ ...settings, targets: next }),
     [persist, settings],
   );
+  const updateSchedule = useCallback(
+    (next: WeeklySchedule) => persist({ ...settings, schedule: next }),
+    [persist, settings],
+  );
   const resetFixedMeals = useCallback(
     () => persist({ ...settings, fixedMeals: DEFAULT_FIXED_MEALS }),
     [persist, settings],
   );
 
   const value = useMemo(
-    () => ({ settings, loading, updateFixedMeals, updateTargets, resetFixedMeals }),
-    [settings, loading, updateFixedMeals, updateTargets, resetFixedMeals],
+    () => ({ settings, loading, updateFixedMeals, updateTargets, updateSchedule, resetFixedMeals }),
+    [settings, loading, updateFixedMeals, updateTargets, updateSchedule, resetFixedMeals],
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
