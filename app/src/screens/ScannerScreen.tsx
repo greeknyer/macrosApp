@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -10,18 +10,30 @@ import {
 } from 'react-native';
 import { theme } from '../theme';
 import { insertFood, type FoodInput } from '../lib/foods';
-import { lookupBarcode, searchByName, scannedToFoodInput, type ScannedProduct } from '../lib/openFoodFacts';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  lookupBarcode,
+  searchByName,
+  scannedToFoodInput,
+  inRegion,
+  REGIONS,
+  type Region,
+  type ScannedProduct,
+} from '../lib/openFoodFacts';
 import { useFoods } from '../context/FoodsContext';
 import BarcodeCamera from '../components/BarcodeCamera';
 import type { FoodCategory } from '../types';
 
 const CATEGORIES: FoodCategory[] = ['protein', 'carb', 'fat', 'mixed'];
+const REGION_ORDER: Region[] = ['global', 'greece', 'us'];
+const REGION_KEY = 'addfood.region';
 type Mode = 'search' | 'barcode' | 'camera';
 
 export default function ScannerScreen() {
   const { reload } = useFoods();
   const [mode, setMode] = useState<Mode>('search');
 
+  const [region, setRegion] = useState<Region>('global');
   const [query, setQuery] = useState('');
   const [manual, setManual] = useState('');
   const [results, setResults] = useState<ScannedProduct[]>([]);
@@ -32,6 +44,17 @@ export default function ScannerScreen() {
   const [draft, setDraft] = useState<FoodInput | null>(null);
   const [saving, setSaving] = useState(false);
   const searchAbort = useRef<AbortController | null>(null);
+
+  // Remember the region across sessions (handy while travelling).
+  useEffect(() => {
+    AsyncStorage.getItem(REGION_KEY).then((v) => {
+      if (v && v in REGIONS) setRegion(v as Region);
+    });
+  }, []);
+  const changeRegion = (r: Region) => {
+    setRegion(r);
+    void AsyncStorage.setItem(REGION_KEY, r);
+  };
 
   // ── Actions ──
   const runSearch = async () => {
@@ -47,7 +70,7 @@ export default function ScannerScreen() {
     setStatus(null);
     setResults([]);
     try {
-      const found = await searchByName(q, ctrl.signal);
+      const found = await searchByName(q, { signal: ctrl.signal, region });
       setResults(found);
       setStatus(found.length ? null : `No products with nutrition info for “${q}”. Try a barcode.`);
     } catch (e) {
@@ -64,7 +87,7 @@ export default function ScannerScreen() {
     setStatus(null);
     setScanning(false);
     try {
-      const product = await lookupBarcode(c);
+      const product = await lookupBarcode(c, region);
       if (product.found) {
         setDraft(scannedToFoodInput(product));
       } else {
@@ -203,6 +226,23 @@ export default function ScannerScreen() {
         ))}
       </View>
 
+      {mode !== 'camera' && (
+        <View style={styles.regionRow}>
+          <Text style={styles.regionLabel}>Region</Text>
+          {REGION_ORDER.map((r) => (
+            <Pressable
+              key={r}
+              style={[styles.regionChip, region === r && styles.regionChipActive]}
+              onPress={() => changeRegion(r)}
+            >
+              <Text style={[styles.regionText, region === r && styles.regionTextActive]}>
+                {REGIONS[r].flag} {REGIONS[r].label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
       {mode === 'search' && (
         <>
           <View style={styles.manualRow}>
@@ -226,6 +266,7 @@ export default function ScannerScreen() {
           {results.map((p) => (
             <Pressable key={p.code + p.name} style={styles.resultCard} onPress={() => pickResult(p)}>
               <Text style={styles.resultName} numberOfLines={2}>
+                {region !== 'global' && inRegion(p, region) ? `${REGIONS[region].flag} ` : ''}
                 {[p.brand, p.name].filter(Boolean).join(' — ')}
               </Text>
               <Text style={styles.resultMacros}>
@@ -291,6 +332,19 @@ const styles = StyleSheet.create({
   modeTabActive: { backgroundColor: theme.blue, borderColor: theme.accentBlue },
   modeText: { color: theme.textDim, fontSize: 13, fontWeight: '700' },
   modeTextActive: { color: '#fff' },
+  regionRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12, flexWrap: 'wrap' },
+  regionLabel: { color: theme.textFaint, fontSize: 12, fontWeight: '600', marginRight: 2 },
+  regionChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    backgroundColor: theme.cardBg,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  regionChipActive: { backgroundColor: theme.blue, borderColor: theme.accentBlue },
+  regionText: { color: theme.textDim, fontSize: 12, fontWeight: '700' },
+  regionTextActive: { color: '#fff' },
   manualRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   label: { color: theme.textDim, fontSize: 12, fontWeight: '600', marginBottom: 4, marginTop: 10 },
   input: {
