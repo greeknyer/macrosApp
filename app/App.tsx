@@ -18,7 +18,7 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'grocery', label: 'Grocery', icon: '🛒' },
   { key: 'foods', label: 'Foods', icon: '📋' },
   { key: 'setup', label: 'Setup', icon: '⚙️' },
-  { key: 'scan', label: 'Scan', icon: '📷' },
+  { key: 'scan', label: 'Add', icon: '➕' },
 ];
 
 function MainApp() {
