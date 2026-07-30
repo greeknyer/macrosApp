@@ -8,11 +8,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import { theme } from '../theme';
 import { insertFood, type FoodInput } from '../lib/foods';
 import { lookupBarcode, searchByName, scannedToFoodInput, type ScannedProduct } from '../lib/openFoodFacts';
 import { useFoods } from '../context/FoodsContext';
+import BarcodeCamera from '../components/BarcodeCamera';
 import type { FoodCategory } from '../types';
 
 const CATEGORIES: FoodCategory[] = ['protein', 'carb', 'fat', 'mixed'];
@@ -20,7 +20,6 @@ type Mode = 'search' | 'barcode' | 'camera';
 
 export default function ScannerScreen() {
   const { reload } = useFoods();
-  const [permission, requestPermission] = useCameraPermissions();
   const [mode, setMode] = useState<Mode>('search');
 
   const [query, setQuery] = useState('');
@@ -115,10 +114,9 @@ export default function ScannerScreen() {
     setDraft((prev) => (prev ? { ...prev, [key]: isNaN(n) ? 0 : n } : prev));
   };
 
-  const enableCamera = async () => {
+  const enableCamera = () => {
     setMode('camera');
     setStatus(null);
-    if (!permission?.granted) await requestPermission();
     setScanning(true);
   };
 
@@ -261,30 +259,11 @@ export default function ScannerScreen() {
 
       {mode === 'camera' && (
         <>
-          {permission?.granted ? (
-            <View style={styles.cameraWrap}>
-              {scanning ? (
-                <CameraView
-                  style={StyleSheet.absoluteFill}
-                  autofocus="on"
-                  barcodeScannerSettings={{
-                    barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39'],
-                  }}
-                  onBarcodeScanned={({ data }) => (busy ? null : runBarcode(data))}
-                />
-              ) : (
-                <View style={styles.center}>
-                  {busy ? <ActivityIndicator color={theme.accentBlue} size="large" /> : null}
-                </View>
-              )}
-              <View style={styles.reticle} pointerEvents="none" />
-            </View>
-          ) : (
-            <Text style={styles.statusInfo}>Camera access is needed. Tap “📷 Camera” again to grant it.</Text>
-          )}
+          <BarcodeCamera active={scanning && !busy} onDetected={(code) => (busy ? null : runBarcode(code))} />
+          {busy ? <ActivityIndicator color={theme.accentBlue} style={{ marginTop: 14 }} /> : null}
           <Text style={styles.cameraNote}>
-            Live scanning works best in the installed app. In a phone browser (especially iPhone/Safari) it
-            often can’t read codes — use Search or Barcode instead.
+            Point the rear camera at a barcode and hold steady. Works in Chrome on Android; iPhone/Safari
+            can’t scan in-browser — use Search or Barcode there.
           </Text>
         </>
       )}
@@ -297,7 +276,6 @@ export default function ScannerScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.bg },
   content: { padding: 16 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   h1: { color: theme.text, fontSize: 24, fontWeight: '800', marginBottom: 12 },
   dimLeft: { color: theme.textDim, fontSize: 13, marginBottom: 8 },
   modeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
@@ -345,17 +323,6 @@ const styles = StyleSheet.create({
     borderColor: theme.border,
     borderRadius: 8,
     padding: 10,
-  },
-  cameraWrap: { height: 300, backgroundColor: '#000', borderRadius: 12, overflow: 'hidden', position: 'relative' },
-  reticle: {
-    position: 'absolute',
-    top: '30%',
-    left: '12%',
-    right: '12%',
-    height: '40%',
-    borderWidth: 2,
-    borderColor: theme.accentBlue,
-    borderRadius: 12,
   },
   cameraNote: { color: theme.textFaint, fontSize: 12, marginTop: 10, lineHeight: 17 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
